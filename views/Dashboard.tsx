@@ -5,6 +5,7 @@ import { Rule, ActivityLog, RuleStatus } from '../types';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import EmailList from '../components/EmailList';
+import EmailMonitorStatus from '../components/EmailMonitorStatus';
 
 interface DashboardProps {
   rules: Rule[];
@@ -37,6 +38,11 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
             change={stat.change}
           />
         ))}
+      </section>
+
+      {/* Email Monitor Status */}
+      <section>
+        <EmailMonitorStatus />
       </section>
 
       {/* Email Inbox */}
