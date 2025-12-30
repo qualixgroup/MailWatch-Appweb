@@ -1,5 +1,6 @@
 import { gmailService, GmailMessage } from './gmailService';
 import { ruleEngine } from './ruleEngine';
+import { showToast } from '../components/Toast';
 
 // Key for storing processed email IDs in localStorage
 const PROCESSED_EMAILS_KEY = 'mailwatch_processed_emails';
@@ -118,6 +119,11 @@ class EmailMonitor {
 
             if (matches.length > 0) {
                 console.log(`[EmailMonitor] ${matches.length} rule(s) matched and applied`);
+                showToast({
+                    type: 'success',
+                    title: 'Regras Aplicadas',
+                    message: `${matches.length} regra(s) aplicada(s) em ${unprocessedEmails.length} novos emails.`
+                });
             }
 
             return { processed: unprocessedEmails.length, matched: matches.length };

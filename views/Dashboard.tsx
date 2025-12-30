@@ -6,6 +6,7 @@ import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import EmailList from '../components/EmailList';
 import EmailMonitorStatus from '../components/EmailMonitorStatus';
+import { emailMonitor } from '../lib/emailMonitor';
 
 interface DashboardProps {
   rules: Rule[];
@@ -14,13 +15,47 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
+  const [monitorState, setMonitorState] = React.useState(emailMonitor.getState());
+
+  React.useEffect(() => {
+    const unsubscribe = emailMonitor.subscribe(setMonitorState);
+    return () => unsubscribe();
+  }, []);
+
   const activeRulesCount = rules.filter(r => r.status === RuleStatus.ACTIVE).length;
   const pausedRulesCount = rules.length - activeRulesCount;
 
+  // Calculate stats from logs (today)
+  const today = new Date().toDateString();
+  const todayLogs = logs.filter(log => new Date(log.timestamp).toDateString() === today);
+  const matchedToday = todayLogs.filter(log => log.type === 'RuleMatch').length;
+
+  // Get monitor state for processed count (already from state)
+
+
   const stats = [
-    { label: 'Monitorados Hoje', value: '1.240', change: '+12%', icon: 'mail', color: 'text-primary' },
-    { label: 'Regras Ativas', value: activeRulesCount.toString(), sub: `${pausedRulesCount} pausadas`, icon: 'rule', color: 'text-blue-400' },
-    { label: 'Notificações Enviadas', value: '45', sub: '98% Sucesso', icon: 'notifications_active', color: 'text-purple-400' }
+    {
+      label: 'Emails Processados',
+      value: monitorState.processedCount.toLocaleString(),
+      sub: `${matchedToday} ações hoje`,
+      change: '+100%',
+      icon: 'mail',
+      color: 'text-primary'
+    },
+    {
+      label: 'Regras Ativas',
+      value: activeRulesCount.toString(),
+      sub: `${pausedRulesCount} pausadas`,
+      icon: 'rule',
+      color: 'text-blue-400'
+    },
+    {
+      label: 'Ações Executadas',
+      value: matchedToday.toString(),
+      sub: 'Desde 00:00',
+      icon: 'bolt',
+      color: 'text-purple-400'
+    }
   ];
 
   return (
