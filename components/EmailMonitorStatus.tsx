@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { emailMonitor } from '../lib/emailMonitor';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface MonitorState {
     isRunning: boolean;
@@ -11,19 +12,24 @@ interface MonitorState {
 const EmailMonitorStatus: React.FC = () => {
     const [state, setState] = useState<MonitorState>(emailMonitor.getState());
     const [showDetails, setShowDetails] = useState(false);
+    const { settings } = useSettings();
 
     useEffect(() => {
         // Subscribe to monitor state changes
         const unsubscribe = emailMonitor.subscribe(setState);
 
-        // Auto-start monitor when component mounts
-        emailMonitor.start(60000); // Check every 60 seconds
+        // Update interval if running
+        emailMonitor.setInterval(settings.checkInterval);
+
+        // Auto-start monitor when component mounts if not already running
+        if (!emailMonitor.getState().isRunning) {
+            emailMonitor.start(settings.checkInterval);
+        }
 
         return () => {
             unsubscribe();
-            // Don't stop monitor on unmount - let it run in background
         };
-    }, []);
+    }, [settings.checkInterval]);
 
     const formatLastCheck = () => {
         if (!state.lastCheck) return 'Nunca';
@@ -42,7 +48,7 @@ const EmailMonitorStatus: React.FC = () => {
         if (state.isRunning) {
             emailMonitor.stop();
         } else {
-            emailMonitor.start();
+            emailMonitor.start(settings.checkInterval);
         }
     };
 
@@ -55,8 +61,8 @@ const EmailMonitorStatus: React.FC = () => {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className={`size-10 rounded-xl flex items-center justify-center ${state.isRunning
-                            ? 'bg-green-500/20 text-green-400'
-                            : 'bg-yellow-500/20 text-yellow-400'
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-yellow-500/20 text-yellow-400'
                         }`}>
                         <span className="material-symbols-outlined">
                             {state.isRunning ? 'sensors' : 'sensors_off'}
@@ -94,8 +100,8 @@ const EmailMonitorStatus: React.FC = () => {
                     <button
                         onClick={handleToggle}
                         className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${state.isRunning
-                                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                            ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                            : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                             }`}
                     >
                         {state.isRunning ? 'Pausar' : 'Iniciar'}
@@ -113,7 +119,7 @@ const EmailMonitorStatus: React.FC = () => {
                         </div>
                         <div>
                             <p className="text-text-dim">Intervalo</p>
-                            <p className="text-white font-bold">60 segundos</p>
+                            <p className="text-white font-bold">{settings.checkInterval / 1000} segundos</p>
                         </div>
                     </div>
 

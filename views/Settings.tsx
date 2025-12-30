@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
@@ -7,6 +6,7 @@ import { profileService } from '../lib/profileService';
 import { gmailService, GmailConnection } from '../lib/gmailService';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useSettings } from '../contexts/SettingsContext';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -15,6 +15,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
+  const { settings, updateSettings } = useSettings();
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -177,6 +178,73 @@ const Settings: React.FC = () => {
                     <option>(GMT-05:00) New York</option>
                     <option>(GMT+00:00) London</option>
                   </select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Preferences Section - New */}
+          <section className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
+              <span className="material-symbols-outlined text-primary">tune</span>
+              Preferências do Sistema
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <label className="block text-sm font-medium text-text-dim mb-2">
+                  Intervalo de Monitoramento Automático
+                </label>
+                <div className="flex flex-col gap-2">
+                  <select
+                    value={settings.checkInterval}
+                    onChange={(e) => updateSettings({ checkInterval: Number(e.target.value) })}
+                    className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value={30000}>30 segundos (Rápido)</option>
+                    <option value={60000}>1 minuto (Padrão)</option>
+                    <option value={300000}>5 minutos</option>
+                    <option value={900000}>15 minutos</option>
+                    <option value={3600000}>1 hora</option>
+                  </select>
+                  <p className="text-xs text-text-dim/60">
+                    Define a frequência com que o sistema verifica novos emails.
+                    Intervalos menores consomem mais quota da API do Gmail.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-background-dark/50 rounded-lg border border-border-dark/50">
+                  <div>
+                    <p className="font-medium text-white">Sons de Notificação</p>
+                    <p className="text-xs text-text-dim">Tocar som ao aplicar regras</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={settings.enableSounds}
+                      onChange={(e) => updateSettings({ enableSounds: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-background-dark/50 rounded-lg border border-border-dark/50">
+                  <div>
+                    <p className="font-medium text-white">Notificações Visuais</p>
+                    <p className="text-xs text-text-dim">Exibir popups de status</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={settings.enableToasts}
+                      onChange={(e) => updateSettings({ enableToasts: e.target.checked })}
+                    />
+                    <div className="w-11 h-6 bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
                 </div>
               </div>
             </div>

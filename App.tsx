@@ -18,6 +18,7 @@ import { logService } from './lib/logService';
 import { ruleService } from './lib/ruleService';
 import { notificationService } from './lib/notificationService';
 import { ToastProvider, useToast, setGlobalToast } from './components/Toast';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 // Component to initialize global toast
 const ToastInitializer: React.FC = () => {
@@ -94,42 +95,44 @@ const App: React.FC = () => {
   };
 
   return (
-    <ToastProvider>
-      <ToastInitializer />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/google/callback" element={<AuthCallback />} />
+    <SettingsProvider>
+      <ToastProvider>
+        <ToastInitializer />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/google/callback" element={<AuthCallback />} />
 
-            <Route path="/*" element={
-              <RequiresAuth>
-                <div className="flex h-screen w-full overflow-hidden">
-                  <Sidebar />
-                  <main className="flex-1 flex flex-col min-w-0 bg-background-dark relative overflow-hidden">
-                    <Header />
-                    <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth lg:ml-64">
-                      <div className="max-w-7xl mx-auto">
-                        <Routes>
-                          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                          <Route path="/dashboard" element={<Dashboard rules={rules} logs={logs} onToggleRule={toggleRuleStatus} />} />
-                          <Route path="/rules" element={<Rules rules={rules} onToggleRule={toggleRuleStatus} onDeleteRule={deleteRule} />} />
-                          <Route path="/rules/new" element={<RuleEditor onSave={addRule} />} />
-                          <Route path="/rules/edit/:id" element={<RuleEditor rules={rules} onSave={updateRule} onDelete={deleteRule} />} />
-                          <Route path="/logs" element={<Logs logs={logs} onRefresh={fetchLogs} />} />
-                          <Route path="/notifications" element={<Notifications history={notifications} onRefresh={fetchNotifications} />} />
-                          <Route path="/settings" element={<Settings />} />
-                        </Routes>
+              <Route path="/*" element={
+                <RequiresAuth>
+                  <div className="flex h-screen w-full overflow-hidden">
+                    <Sidebar />
+                    <main className="flex-1 flex flex-col min-w-0 bg-background-dark relative overflow-hidden">
+                      <Header />
+                      <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth lg:ml-64">
+                        <div className="max-w-7xl mx-auto">
+                          <Routes>
+                            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                            <Route path="/dashboard" element={<Dashboard rules={rules} logs={logs} onToggleRule={toggleRuleStatus} />} />
+                            <Route path="/rules" element={<Rules rules={rules} onToggleRule={toggleRuleStatus} onDeleteRule={deleteRule} />} />
+                            <Route path="/rules/new" element={<RuleEditor onSave={addRule} />} />
+                            <Route path="/rules/edit/:id" element={<RuleEditor rules={rules} onSave={updateRule} onDelete={deleteRule} />} />
+                            <Route path="/logs" element={<Logs logs={logs} onRefresh={fetchLogs} />} />
+                            <Route path="/notifications" element={<Notifications history={notifications} onRefresh={fetchNotifications} />} />
+                            <Route path="/settings" element={<Settings />} />
+                          </Routes>
+                        </div>
                       </div>
-                    </div>
-                  </main>
-                </div>
-              </RequiresAuth>
-            } />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </ToastProvider>
+                    </main>
+                  </div>
+                </RequiresAuth>
+              } />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </ToastProvider>
+    </SettingsProvider>
   );
 };
 
