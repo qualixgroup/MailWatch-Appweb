@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import { UserProfile } from '../types';
 import { profileService } from '../lib/profileService';
+import { gmailService, GmailConnection } from '../lib/gmailService';
 import { useAuth } from '../contexts/AuthContext';
 
 const Settings: React.FC = () => {
@@ -12,6 +13,8 @@ const Settings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -20,6 +23,7 @@ const Settings: React.FC = () => {
 
   useEffect(() => {
     loadProfile();
+    loadGmailStatus();
   }, []);
 
   const loadProfile = async () => {
@@ -36,6 +40,15 @@ const Settings: React.FC = () => {
       setMessage({ type: 'error', text: 'Erro ao carregar perfil.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadGmailStatus = async () => {
+    try {
+      const status = await gmailService.getConnectionStatus();
+      setGmailConnection(status);
+    } catch (error) {
+      console.error('Failed to load Gmail status', error);
     }
   };
 
@@ -60,10 +73,45 @@ const Settings: React.FC = () => {
     }
   };
 
-  const toggleIntegration = async (integration: 'google' | 'slack') => {
+  const handleConnectGoogle = async () => {
+    setConnectingGoogle(true);
+    setMessage(null);
+
+    try {
+      const authUrl = await gmailService.initiateOAuth();
+      // Redirect to Google OAuth
+      window.location.href = authUrl;
+    } catch (error: any) {
+      console.error('Failed to initiate OAuth', error);
+      setMessage({ type: 'error', text: error.message || 'Erro ao iniciar conexão com Google.' });
+      setConnectingGoogle(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setConnectingGoogle(true);
+    setMessage(null);
+
+    try {
+      const result = await gmailService.disconnect();
+      if (result.success) {
+        setGmailConnection({ connected: false });
+        setMessage({ type: 'success', text: 'Gmail desconectado com sucesso!' });
+        loadProfile();
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Erro ao desconectar Gmail.' });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: 'Erro ao desconectar Gmail.' });
+    } finally {
+      setConnectingGoogle(false);
+    }
+  };
+
+  const toggleSlackIntegration = async () => {
     if (!profile) return;
     try {
-      await profileService.toggleIntegration(integration, profile);
+      await profileService.toggleIntegration('slack', profile);
       loadProfile();
     } catch (error) {
       setMessage({ type: 'error', text: 'Erro ao atualizar integração.' });
@@ -167,26 +215,37 @@ const Settings: React.FC = () => {
               Integrações Conectadas
             </h3>
             <div className="space-y-4">
-              <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${profile?.integrations.google ? 'border-emerald-500/30' : 'border-border-dark'}`}>
+              {/* Google Workspace Integration */}
+              <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${gmailConnection.connected ? 'border-emerald-500/30' : 'border-border-dark'}`}>
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-lg bg-white p-1.5 flex items-center justify-center">
                     <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCs23Rh8t3UHr9Ur7Ql0jTlkOY4nvBphBD4v_u-92BK0gf6mGrjsfLmsGdR8oQIx4tRb9cQ1EigPp-TLg-m_N4U6n_hyDllk9z15574qE5fnbg-2QganLX2-vXJM12qytD1xxcjsOjocoFEjNo7yoOfHRJ7FZ9IqCRiq8LUZSmLb0T7_r86HVz-o7IYszQf5MS57ysdKkkk84DS93-5HQUnP35Rch7D_4wxaMB6VEAmOOWUu8epMa720mbtyOnzkayuElTFpbRRBC5M" alt="Gmail" className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <p className="text-white font-bold">Google Workspace</p>
-                    <p className={`text-xs font-bold ${profile?.integrations.google ? 'text-emerald-500' : 'text-text-dim'}`}>
-                      {profile?.integrations.google ? 'Sincronização Ativa' : 'Desconectado'}
-                    </p>
+                    {gmailConnection.connected ? (
+                      <div className="flex flex-col">
+                        <p className="text-xs font-bold text-emerald-500">Sincronização Ativa</p>
+                        <p className="text-xs text-text-dim">{gmailConnection.email}</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-text-dim">Desconectado</p>
+                    )}
                   </div>
                 </div>
                 <button
-                  onClick={() => toggleIntegration('google')}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${profile?.integrations.google ? 'text-red-400 hover:bg-red-400/10' : 'text-primary hover:bg-primary/10'}`}
+                  onClick={gmailConnection.connected ? handleDisconnectGoogle : handleConnectGoogle}
+                  disabled={connectingGoogle}
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${gmailConnection.connected ? 'text-red-400 hover:bg-red-400/10' : 'text-primary hover:bg-primary/10'} ${connectingGoogle ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {profile?.integrations.google ? 'Desconectar' : 'Conectar'}
+                  {connectingGoogle && (
+                    <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                  )}
+                  {gmailConnection.connected ? 'Desconectar' : 'Conectar'}
                 </button>
               </div>
 
+              {/* Slack Integration */}
               <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${profile?.integrations.slack ? 'border-emerald-500/30' : 'border-border-dark opacity-60'}`}>
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-lg bg-surface-dark p-2 flex items-center justify-center">
@@ -200,7 +259,7 @@ const Settings: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => toggleIntegration('slack')}
+                  onClick={toggleSlackIntegration}
                   className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${profile?.integrations.slack ? 'text-red-400 hover:bg-red-400/10' : 'text-primary hover:bg-primary/10'}`}
                 >
                   {profile?.integrations.slack ? 'Desconectar' : 'Conectar'}
@@ -224,3 +283,4 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
+

@@ -9,6 +9,7 @@ import RuleEditor from './views/RuleEditor';
 import Logs from './views/Logs';
 import Notifications from './views/Notifications';
 import Settings from './views/Settings';
+import AuthCallback from './views/AuthCallback';
 import { Rule, RuleStatus, ActivityLog, NotificationHistory } from './types';
 import { AuthProvider } from './contexts/AuthContext';
 import RequiresAuth from './components/RequiresAuth';
@@ -87,6 +88,7 @@ const App: React.FC = () => {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/auth/google/callback" element={<AuthCallback />} />
 
           <Route path="/*" element={
             <RequiresAuth>
