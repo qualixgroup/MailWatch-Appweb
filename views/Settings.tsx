@@ -136,15 +136,15 @@ const Settings: React.FC = () => {
 
           {/* Tab: Conta - Profile Section */}
           {activeTab === 'Conta' && (
-            <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 animate-fade-in">
-              <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
+            <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
+              <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">person</span>
                 Perfil do Usuário
               </h3>
 
               <div className="space-y-6">
-                <div className="flex items-center gap-6 pb-6 border-b border-border-dark">
-                  <div className="size-20 rounded-2xl bg-surface-dark border border-border-dark flex items-center justify-center text-primary bg-primary/10">
+                <div className="flex items-center gap-6 pb-6 border-b border-gray-200 dark:border-border-dark">
+                  <div className="size-20 rounded-2xl bg-gray-100 dark:bg-surface-dark border border-gray-200 dark:border-border-dark flex items-center justify-center text-primary bg-primary/10">
                     {profile?.avatarUrl ? (
                       <div className="size-full bg-cover bg-center rounded-2xl" style={{ backgroundImage: `url(${profile.avatarUrl})` }} />
                     ) : (
@@ -153,37 +153,37 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="flex flex-col gap-2 flex-1">
                     <div className="flex flex-col">
-                      <label className="text-xs font-bold text-text-dim uppercase mb-1">Nome Completo</label>
+                      <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase mb-1">Nome Completo</label>
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="bg-background-dark border border-border-dark rounded-lg px-3 py-2 text-white focus:border-primary outline-none"
+                        className="bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:border-primary outline-none transition-colors"
                         placeholder="Seu nome"
                       />
                     </div>
-                    <p className="text-text-dim text-sm mt-1">{profile?.email}</p>
+                    <p className="text-gray-500 dark:text-text-dim text-sm mt-1">{profile?.email}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-text-dim uppercase tracking-wider">Idioma</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">Idioma</label>
                     <select
                       value={language}
                       onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none"
+                      className="w-full bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-colors"
                     >
                       <option>Português (Brasil)</option>
                       <option>English (US)</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-text-dim uppercase tracking-wider">Fuso Horário</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">Fuso Horário</label>
                     <select
                       value={timezone}
                       onChange={(e) => setTimezone(e.target.value)}
-                      className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none"
+                      className="w-full bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-colors"
                     >
                       <option>(GMT-03:00) São Paulo</option>
                       <option>(GMT-05:00) New York</option>
@@ -203,22 +203,22 @@ const Settings: React.FC = () => {
 
           {/* Tab: Geral - Preferences Section */}
           {activeTab === 'Geral' && (
-            <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 animate-fade-in">
-              <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
+            <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
+              <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">tune</span>
                 Preferências do Sistema
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <label className="block text-sm font-medium text-text-dim mb-2">
+                  <label className="block text-sm font-medium text-gray-500 dark:text-text-dim mb-2">
                     Intervalo de Monitoramento Automático
                   </label>
                   <div className="flex flex-col gap-2">
                     <select
                       value={settings.checkInterval}
                       onChange={(e) => updateSettings({ checkInterval: Number(e.target.value) })}
-                      className="w-full bg-background-dark border border-border-dark rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-lg px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:border-primary transition-colors appearance-none"
                     >
                       <option value={30000}>30 segundos (Rápido)</option>
                       <option value={60000}>1 minuto (Padrão)</option>
@@ -226,7 +226,7 @@ const Settings: React.FC = () => {
                       <option value={900000}>15 minutos</option>
                       <option value={3600000}>1 hora</option>
                     </select>
-                    <p className="text-xs text-text-dim/60">
+                    <p className="text-xs text-gray-500 dark:text-text-dim/60">
                       Define a frequência com que o sistema verifica novos emails.
                       Intervalos menores consomem mais quota da API do Gmail.
                     </p>
@@ -234,10 +234,33 @@ const Settings: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-background-dark/50 rounded-lg border border-border-dark/50">
+
+                  {/* Theme Toggle */}
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
-                      <p className="font-medium text-white">Sons de Notificação</p>
-                      <p className="text-xs text-text-dim">Tocar som ao aplicar regras</p>
+                      <p className="font-medium text-gray-900 dark:text-white">Aparência</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">Alternar entre modo claro e escuro</p>
+                    </div>
+                    <div className="flex bg-gray-200 dark:bg-surface-lighter rounded-lg p-1">
+                      <button
+                        onClick={() => updateSettings({ theme: 'light' })}
+                        className={`p-2 rounded-md transition-all flex items-center justify-center ${settings.theme === 'light' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">light_mode</span>
+                      </button>
+                      <button
+                        onClick={() => updateSettings({ theme: 'dark' })}
+                        className={`p-2 rounded-md transition-all flex items-center justify-center ${settings.theme === 'dark' ? 'bg-background-dark text-primary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
+                      >
+                        <span className="material-symbols-outlined text-[20px]">dark_mode</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">Sons de Notificação</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">Tocar som ao aplicar regras</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -246,14 +269,14 @@ const Settings: React.FC = () => {
                         checked={settings.enableSounds}
                         onChange={(e) => updateSettings({ enableSounds: e.target.checked })}
                       />
-                      <div className="w-11 h-6 bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-11 h-6 bg-gray-200 dark:bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-background-dark/50 rounded-lg border border-border-dark/50">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
-                      <p className="font-medium text-white">Notificações Visuais</p>
-                      <p className="text-xs text-text-dim">Exibir popups de status</p>
+                      <p className="font-medium text-gray-900 dark:text-white">Notificações Visuais</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">Exibir popups de status</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -262,7 +285,7 @@ const Settings: React.FC = () => {
                         checked={settings.enableToasts}
                         onChange={(e) => updateSettings({ enableToasts: e.target.checked })}
                       />
-                      <div className="w-11 h-6 bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                      <div className="w-11 h-6 bg-gray-200 dark:bg-surface-lighter rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
                 </div>
@@ -272,17 +295,17 @@ const Settings: React.FC = () => {
 
           {/* Tab: Integrações - Connected Integrations */}
           {activeTab === 'Integrações' && (
-            <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 animate-fade-in">
-              <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
+            <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
+              <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">hub</span>
                 Integrações Conectadas
               </h3>
 
               <div className="space-y-4">
                 {/* Google Integration */}
-                <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${gmailConnection.connected ? 'border-emerald-500/30' : 'border-border-dark'}`}>
+                <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${gmailConnection.connected ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark'}`}>
                   <div className="flex items-center gap-4">
-                    <div className="size-10 rounded-lg bg-white p-1.5 flex items-center justify-center">
+                    <div className="size-10 rounded-lg bg-white p-1.5 flex items-center justify-center border border-gray-100 shadow-sm">
                       <svg className="w-6 h-6" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -291,28 +314,28 @@ const Settings: React.FC = () => {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-white font-bold">Google Workspace</p>
+                      <p className="text-gray-900 dark:text-white font-bold">Google Workspace</p>
                       {gmailConnection.connected ? (
                         <div className="flex flex-col">
                           <p className="text-xs font-bold text-emerald-500">Sincronização Ativa</p>
-                          <p className="text-xs text-text-dim">{gmailConnection.email}</p>
+                          <p className="text-xs text-gray-500 dark:text-text-dim">{gmailConnection.email}</p>
                         </div>
                       ) : (
-                        <p className="text-xs font-bold text-text-dim">Desconectado</p>
+                        <p className="text-xs font-bold text-gray-500 dark:text-text-dim">Desconectado</p>
                       )}
                     </div>
                   </div>
                   {gmailConnection.connected ? (
                     <button
                       onClick={handleLogout}
-                      className="px-4 py-2 text-xs font-bold rounded-lg text-red-400 hover:bg-red-400/10 transition-all"
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                     >
                       Desconectar
                     </button>
                   ) : (
                     <a
                       href="/login"
-                      className="px-4 py-2 text-xs font-bold rounded-lg text-primary hover:bg-primary/10 transition-all"
+                      className="px-4 py-2 text-xs font-bold rounded-lg text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20"
                     >
                       Conectar com Google
                     </a>
@@ -320,21 +343,21 @@ const Settings: React.FC = () => {
                 </div>
 
                 {/* Slack Integration */}
-                <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${profile?.integrations.slack ? 'border-emerald-500/30' : 'border-border-dark opacity-60'}`}>
+                <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${profile?.integrations.slack ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark opacity-60'}`}>
                   <div className="flex items-center gap-4">
-                    <div className="size-10 rounded-lg bg-surface-dark p-2 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-white">chat</span>
+                    <div className="size-10 rounded-lg bg-gray-200 dark:bg-surface-dark p-2 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-gray-700 dark:text-white">chat</span>
                     </div>
                     <div>
-                      <p className="text-white font-bold">Slack Notifications</p>
-                      <p className={`text-xs font-bold ${profile?.integrations.slack ? 'text-emerald-500' : 'text-text-dim'}`}>
+                      <p className="text-gray-900 dark:text-white font-bold">Slack Notifications</p>
+                      <p className={`text-xs font-bold ${profile?.integrations.slack ? 'text-emerald-500' : 'text-gray-500 dark:text-text-dim'}`}>
                         {profile?.integrations.slack ? 'Sincronização Ativa' : 'Desconectado'}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={toggleSlackIntegration}
-                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${profile?.integrations.slack ? 'text-red-400 hover:bg-red-400/10' : 'text-primary hover:bg-primary/10'}`}
+                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.slack ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
                   >
                     {profile?.integrations.slack ? 'Desconectar' : 'Conectar'}
                   </button>

@@ -18,7 +18,7 @@ import { logService } from './lib/logService';
 import { ruleService } from './lib/ruleService';
 import { notificationService } from './lib/notificationService';
 import { ToastProvider, useToast, setGlobalToast } from './components/Toast';
-import { SettingsProvider } from './contexts/SettingsContext';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
 // Component to initialize global toast
 const ToastInitializer: React.FC = () => {
@@ -26,6 +26,22 @@ const ToastInitializer: React.FC = () => {
   useEffect(() => {
     setGlobalToast(addToast);
   }, [addToast]);
+  return null;
+};
+
+// Component to handle theme application
+const ThemeInitializer: React.FC = () => {
+  const { settings } = useSettings();
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (settings.theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [settings.theme]);
+
   return null;
 };
 
@@ -96,6 +112,7 @@ const App: React.FC = () => {
 
   return (
     <SettingsProvider>
+      <ThemeInitializer />
       <ToastProvider>
         <ToastInitializer />
         <BrowserRouter>
@@ -108,7 +125,7 @@ const App: React.FC = () => {
                 <RequiresAuth>
                   <div className="flex h-screen w-full overflow-hidden">
                     <Sidebar />
-                    <main className="flex-1 flex flex-col min-w-0 bg-background-dark relative overflow-hidden">
+                    <main className="flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-background-dark relative overflow-hidden transition-colors">
                       <Header />
                       <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth lg:ml-64">
                         <div className="max-w-7xl mx-auto">

@@ -12,8 +12,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, description, children, c
     return (
         <div className={`flex flex-col md:flex-row md:items-end justify-between gap-4 ${className}`}>
             <div>
-                <h1 className="text-3xl font-bold tracking-tight text-white mb-2">{title}</h1>
-                {description && <p className="text-text-dim max-w-2xl">{description}</p>}
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-2">{title}</h1>
+                {description && <p className="text-gray-500 dark:text-text-dim max-w-2xl">{description}</p>}
             </div>
             {children && (
                 <div className="flex items-center gap-3">
