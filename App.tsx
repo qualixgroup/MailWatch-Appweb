@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './views/Dashboard';
@@ -84,7 +84,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -116,7 +116,7 @@ const App: React.FC = () => {
           } />
         </Routes>
       </AuthProvider>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 
