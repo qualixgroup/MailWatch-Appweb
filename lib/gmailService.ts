@@ -18,6 +18,12 @@ export interface GmailMessage {
   isUnread: boolean;
 }
 
+export interface GmailFullMessage extends GmailMessage {
+  body: string;
+  htmlBody?: string;
+  attachments: { filename: string; mimeType: string; size: number }[];
+}
+
 export const gmailService = {
   /**
    * Check if user is connected to Gmail (via Google OAuth login)
@@ -177,6 +183,146 @@ export const gmailService = {
     } catch (error) {
       console.error('Error fetching email stats:', error);
       return { total: 0, unread: 0 };
+    }
+  },
+
+  /**
+   * Get full email content including body
+   */
+  async getFullEmail(messageId: string): Promise<GmailFullMessage | null> {
+    const token = await this.getProviderToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const headers = data.payload?.headers || [];
+
+      const getHeader = (name: string) =>
+        headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+      // Extract body from parts
+      let body = '';
+      let htmlBody = '';
+      const attachments: { filename: string; mimeType: string; size: number }[] = [];
+
+      const extractBody = (part: any) => {
+        if (part.mimeType === 'text/plain' && part.body?.data) {
+          body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        } else if (part.mimeType === 'text/html' && part.body?.data) {
+          htmlBody = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        } else if (part.filename && part.body?.attachmentId) {
+          attachments.push({
+            filename: part.filename,
+            mimeType: part.mimeType,
+            size: part.body.size || 0
+          });
+        }
+
+        if (part.parts) {
+          part.parts.forEach(extractBody);
+        }
+      };
+
+      if (data.payload) {
+        extractBody(data.payload);
+      }
+
+      // If body is in the main payload
+      if (!body && !htmlBody && data.payload?.body?.data) {
+        const decodedBody = atob(data.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        if (data.payload.mimeType === 'text/html') {
+          htmlBody = decodedBody;
+        } else {
+          body = decodedBody;
+        }
+      }
+
+      return {
+        id: data.id,
+        threadId: data.threadId,
+        subject: getHeader('Subject'),
+        from: getHeader('From'),
+        to: getHeader('To'),
+        date: getHeader('Date'),
+        snippet: data.snippet || '',
+        labelIds: data.labelIds || [],
+        isUnread: data.labelIds?.includes('UNREAD') || false,
+        body: body || htmlBody,
+        htmlBody: htmlBody || undefined,
+        attachments
+      };
+    } catch (error) {
+      console.error('Error fetching full email:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Apply a label to an email
+   */
+  async applyLabel(messageId: string, labelId: string): Promise<boolean> {
+    const token = await this.getProviderToken();
+    if (!token) return false;
+
+    try {
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/modify`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            addLabelIds: [labelId]
+          })
+        }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error applying label:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Archive an email (remove from INBOX)
+   */
+  async archiveEmail(messageId: string): Promise<boolean> {
+    const token = await this.getProviderToken();
+    if (!token) return false;
+
+    try {
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/modify`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            removeLabelIds: ['INBOX']
+          })
+        }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error archiving email:', error);
+      return false;
     }
   }
 };

@@ -17,11 +17,18 @@ export interface Rule {
   id: string;
   name: string;
   subjectFilter: string;
+  senderFilter?: string;
+  keywords?: string[];
   condition: RuleCondition;
   notificationEmail: string;
   status: RuleStatus;
   createdAt: string;
   icon?: string;
+  actions?: {
+    markAsRead?: boolean;
+    archive?: boolean;
+    applyLabel?: string;
+  };
 }
 
 export interface ActivityLog {

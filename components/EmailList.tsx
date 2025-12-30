@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { gmailService, GmailMessage, GmailConnection } from '../lib/gmailService';
+import EmailViewer from './EmailViewer';
 
 interface EmailListProps {
     maxEmails?: number;
@@ -11,6 +12,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     const [error, setError] = useState<string | null>(null);
     const [connection, setConnection] = useState<GmailConnection>({ connected: false });
     const [stats, setStats] = useState<{ total: number; unread: number }>({ total: 0, unread: 0 });
+    const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
 
     useEffect(() => {
         checkConnectionAndLoadEmails();
@@ -37,6 +39,23 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEmailClick = (emailId: string) => {
+        setSelectedEmailId(emailId);
+    };
+
+    const handleCloseViewer = () => {
+        setSelectedEmailId(null);
+    };
+
+    const handleMarkAsRead = () => {
+        // Update the local state to mark email as read
+        setEmails(emails.map(e =>
+            e.id === selectedEmailId ? { ...e, isUnread: false } : e
+        ));
+        // Update unread count
+        setStats(s => ({ ...s, unread: Math.max(0, s.unread - 1) }));
     };
 
     const formatDate = (dateStr: string) => {
@@ -111,76 +130,88 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     }
 
     return (
-        <div className="bg-surface-dark border border-border-dark rounded-2xl overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-border-dark flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-primary">inbox</span>
-                    <h3 className="text-lg font-bold text-white">Caixa de Entrada</h3>
-                    {stats.unread > 0 && (
-                        <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded-full">
-                            {stats.unread} não lidos
-                        </span>
+        <>
+            <div className="bg-surface-dark border border-border-dark rounded-2xl overflow-hidden">
+                {/* Header */}
+                <div className="p-4 border-b border-border-dark flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="material-symbols-outlined text-primary">inbox</span>
+                        <h3 className="text-lg font-bold text-white">Caixa de Entrada</h3>
+                        {stats.unread > 0 && (
+                            <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded-full">
+                                {stats.unread} não lidos
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        onClick={checkConnectionAndLoadEmails}
+                        className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                        title="Atualizar"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">refresh</span>
+                    </button>
+                </div>
+
+                {/* Email List */}
+                <div className="divide-y divide-border-dark max-h-[500px] overflow-y-auto">
+                    {emails.length === 0 ? (
+                        <div className="p-8 text-center text-text-dim">
+                            <span className="material-symbols-outlined text-4xl mb-2 block">inbox</span>
+                            Nenhum email encontrado
+                        </div>
+                    ) : (
+                        emails.map((email) => (
+                            <div
+                                key={email.id}
+                                onClick={() => handleEmailClick(email.id)}
+                                className={`p-4 hover:bg-background-dark/50 transition-all cursor-pointer ${email.isUnread ? 'bg-primary/5' : ''}`}
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${email.isUnread ? 'bg-primary' : 'bg-surface-dark border border-border-dark'}`}>
+                                        {extractName(email.from).charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <p className={`truncate ${email.isUnread ? 'font-bold text-white' : 'text-text-dim'}`}>
+                                                {extractName(email.from)}
+                                            </p>
+                                            <span className="text-xs text-text-dim whitespace-nowrap">
+                                                {formatDate(email.date)}
+                                            </span>
+                                        </div>
+                                        <p className={`truncate text-sm ${email.isUnread ? 'font-semibold text-white' : 'text-text-dim'}`}>
+                                            {email.subject || '(Sem assunto)'}
+                                        </p>
+                                        <p className="text-xs text-text-dim truncate mt-1">
+                                            {email.snippet}
+                                        </p>
+                                    </div>
+                                    {email.isUnread && (
+                                        <div className="size-2 rounded-full bg-primary flex-shrink-0 mt-2"></div>
+                                    )}
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
-                <button
-                    onClick={checkConnectionAndLoadEmails}
-                    className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-                    title="Atualizar"
-                >
-                    <span className="material-symbols-outlined text-[20px]">refresh</span>
-                </button>
+
+                {/* Footer */}
+                <div className="p-4 border-t border-border-dark bg-background-dark/30">
+                    <p className="text-xs text-text-dim text-center">
+                        Mostrando {emails.length} de {stats.total.toLocaleString()} emails • Conectado como {connection.email}
+                    </p>
+                </div>
             </div>
 
-            {/* Email List */}
-            <div className="divide-y divide-border-dark max-h-[500px] overflow-y-auto">
-                {emails.length === 0 ? (
-                    <div className="p-8 text-center text-text-dim">
-                        <span className="material-symbols-outlined text-4xl mb-2 block">inbox</span>
-                        Nenhum email encontrado
-                    </div>
-                ) : (
-                    emails.map((email) => (
-                        <div
-                            key={email.id}
-                            className={`p-4 hover:bg-background-dark/50 transition-all cursor-pointer ${email.isUnread ? 'bg-primary/5' : ''}`}
-                        >
-                            <div className="flex items-start gap-3">
-                                <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${email.isUnread ? 'bg-primary' : 'bg-surface-dark border border-border-dark'}`}>
-                                    {extractName(email.from).charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                        <p className={`truncate ${email.isUnread ? 'font-bold text-white' : 'text-text-dim'}`}>
-                                            {extractName(email.from)}
-                                        </p>
-                                        <span className="text-xs text-text-dim whitespace-nowrap">
-                                            {formatDate(email.date)}
-                                        </span>
-                                    </div>
-                                    <p className={`truncate text-sm ${email.isUnread ? 'font-semibold text-white' : 'text-text-dim'}`}>
-                                        {email.subject || '(Sem assunto)'}
-                                    </p>
-                                    <p className="text-xs text-text-dim truncate mt-1">
-                                        {email.snippet}
-                                    </p>
-                                </div>
-                                {email.isUnread && (
-                                    <div className="size-2 rounded-full bg-primary flex-shrink-0 mt-2"></div>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-border-dark bg-background-dark/30">
-                <p className="text-xs text-text-dim text-center">
-                    Mostrando {emails.length} de {stats.total.toLocaleString()} emails • Conectado como {connection.email}
-                </p>
-            </div>
-        </div>
+            {/* Email Viewer Modal */}
+            {selectedEmailId && (
+                <EmailViewer
+                    messageId={selectedEmailId}
+                    onClose={handleCloseViewer}
+                    onMarkAsRead={handleMarkAsRead}
+                />
+            )}
+        </>
     );
 };
 
