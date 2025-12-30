@@ -13,12 +13,15 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     const [connection, setConnection] = useState<GmailConnection>({ connected: false });
     const [stats, setStats] = useState<{ total: number; unread: number }>({ total: 0, unread: 0 });
     const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageToken, setPageToken] = useState<string | null>(null);
+    const [pageTokens, setPageTokens] = useState<string[]>(['']); // Store tokens for each page
 
     useEffect(() => {
         checkConnectionAndLoadEmails();
     }, []);
 
-    const checkConnectionAndLoadEmails = async () => {
+    const checkConnectionAndLoadEmails = async (token?: string) => {
         setLoading(true);
         setError(null);
 
@@ -27,11 +30,12 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
             setConnection(status);
 
             if (status.connected) {
-                const [fetchedEmails, emailStats] = await Promise.all([
-                    gmailService.fetchEmails(maxEmails),
+                const [result, emailStats] = await Promise.all([
+                    gmailService.fetchEmailsWithPagination(maxEmails, token),
                     gmailService.getEmailStats()
                 ]);
-                setEmails(fetchedEmails);
+                setEmails(result.emails);
+                setPageToken(result.nextPageToken || null);
                 setStats(emailStats);
             }
         } catch (err: any) {
@@ -39,6 +43,30 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleNextPage = async () => {
+        if (!pageToken) return;
+
+        // Store current page token for going back
+        const newPageTokens = [...pageTokens];
+        if (!newPageTokens[currentPage]) {
+            newPageTokens[currentPage] = pageToken;
+        }
+        setPageTokens(newPageTokens);
+
+        setCurrentPage(prev => prev + 1);
+        await checkConnectionAndLoadEmails(pageToken);
+    };
+
+    const handlePrevPage = async () => {
+        if (currentPage <= 1) return;
+
+        const prevPage = currentPage - 1;
+        const token = prevPage === 1 ? undefined : pageTokens[prevPage - 1];
+
+        setCurrentPage(prevPage);
+        await checkConnectionAndLoadEmails(token);
     };
 
     const handleEmailClick = (emailId: string) => {
@@ -50,11 +78,9 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     };
 
     const handleMarkAsRead = () => {
-        // Update the local state to mark email as read
         setEmails(emails.map(e =>
             e.id === selectedEmailId ? { ...e, isUnread: false } : e
         ));
-        // Update unread count
         setStats(s => ({ ...s, unread: Math.max(0, s.unread - 1) }));
     };
 
@@ -79,6 +105,10 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         const match = fromStr.match(/^([^<]+)/);
         return match ? match[1].trim() : fromStr;
     };
+
+    // Calculate display range
+    const startIndex = (currentPage - 1) * maxEmails + 1;
+    const endIndex = Math.min(startIndex + emails.length - 1, stats.total);
 
     if (loading) {
         return (
@@ -120,7 +150,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                     <span className="text-red-500">{error}</span>
                 </div>
                 <button
-                    onClick={checkConnectionAndLoadEmails}
+                    onClick={() => checkConnectionAndLoadEmails()}
                     className="mt-4 px-4 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-all"
                 >
                     Tentar novamente
@@ -144,7 +174,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                         )}
                     </div>
                     <button
-                        onClick={checkConnectionAndLoadEmails}
+                        onClick={() => checkConnectionAndLoadEmails()}
                         className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                         title="Atualizar"
                     >
@@ -195,11 +225,42 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                     )}
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-border-dark bg-background-dark/30">
-                    <p className="text-xs text-text-dim text-center">
-                        Mostrando {emails.length} de {stats.total.toLocaleString()} emails • Conectado como {connection.email}
+                {/* Footer with Pagination */}
+                <div className="p-4 border-t border-border-dark bg-background-dark/30 flex items-center justify-between">
+                    <p className="text-xs text-text-dim">
+                        Conectado como {connection.email}
                     </p>
+
+                    {/* Pagination Controls */}
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs text-text-dim">
+                            {emails.length > 0 ? `${startIndex}-${endIndex}` : '0'} de {stats.total.toLocaleString()}
+                        </span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={handlePrevPage}
+                                disabled={currentPage <= 1 || loading}
+                                className={`p-1.5 rounded-lg transition-all ${currentPage <= 1
+                                        ? 'text-text-dim/30 cursor-not-allowed'
+                                        : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    }`}
+                                title="Página anterior"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                            </button>
+                            <button
+                                onClick={handleNextPage}
+                                disabled={!pageToken || loading}
+                                className={`p-1.5 rounded-lg transition-all ${!pageToken
+                                        ? 'text-text-dim/30 cursor-not-allowed'
+                                        : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    }`}
+                                title="Próxima página"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 

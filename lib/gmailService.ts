@@ -127,6 +127,84 @@ export const gmailService = {
   },
 
   /**
+   * Fetch emails with pagination support
+   */
+  async fetchEmailsWithPagination(maxResults: number = 20, pageToken?: string): Promise<{ emails: GmailMessage[]; nextPageToken?: string }> {
+    const token = await this.getProviderToken();
+
+    if (!token) {
+      console.error('No Google provider token available');
+      return { emails: [] };
+    }
+
+    try {
+      // Build URL with optional pageToken
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}`;
+      if (pageToken) {
+        url += `&pageToken=${pageToken}`;
+      }
+
+      const listResponse = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!listResponse.ok) {
+        const error = await listResponse.json();
+        console.error('Gmail API error:', error);
+        return { emails: [] };
+      }
+
+      const listData = await listResponse.json();
+      const messages = listData.messages || [];
+      const nextPageToken = listData.nextPageToken;
+
+      // Fetch details for each message
+      const emailPromises = messages.map(async (msg: { id: string }) => {
+        const detailResponse = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (!detailResponse.ok) return null;
+
+        const detail = await detailResponse.json();
+        const headers = detail.payload?.headers || [];
+
+        const getHeader = (name: string) =>
+          headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+        return {
+          id: detail.id,
+          threadId: detail.threadId,
+          subject: getHeader('Subject'),
+          from: getHeader('From'),
+          to: getHeader('To'),
+          date: getHeader('Date'),
+          snippet: detail.snippet || '',
+          labelIds: detail.labelIds || [],
+          isUnread: detail.labelIds?.includes('UNREAD') || false
+        } as GmailMessage;
+      });
+
+      const emails = await Promise.all(emailPromises);
+      return {
+        emails: emails.filter(e => e !== null) as GmailMessage[],
+        nextPageToken
+      };
+
+    } catch (error) {
+      console.error('Error fetching emails:', error);
+      return { emails: [] };
+    }
+  },
+
+  /**
    * Mark an email as read
    */
   async markAsRead(messageId: string): Promise<boolean> {
