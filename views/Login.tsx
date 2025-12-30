@@ -53,7 +53,7 @@ const Login: React.FC = () => {
                 provider: 'google',
                 options: {
                     redirectTo: `${window.location.origin}/dashboard`,
-                    scopes: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify',
+                    scopes: 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send',
                     queryParams: {
                         access_type: 'offline',
                         prompt: 'consent',

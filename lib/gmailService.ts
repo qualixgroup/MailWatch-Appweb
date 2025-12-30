@@ -402,5 +402,131 @@ export const gmailService = {
       console.error('Error archiving email:', error);
       return false;
     }
+  },
+
+  /**
+   * Send an email using the user's Gmail account
+   */
+  async sendEmail(options: {
+    to: string;
+    subject: string;
+    body: string;
+    htmlBody?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    const token = await this.getProviderToken();
+    if (!token) {
+      return { success: false, error: 'Token não disponível' };
+    }
+
+    try {
+      // Get current user email for "From" field
+      const { data: { user } } = await supabase.auth.getUser();
+      const fromEmail = user?.email || 'me';
+
+      // Create email content in RFC 2822 format
+      const emailContent = options.htmlBody
+        ? [
+          `From: ${fromEmail}`,
+          `To: ${options.to}`,
+          `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(options.subject)))}?=`,
+          'MIME-Version: 1.0',
+          'Content-Type: text/html; charset=UTF-8',
+          '',
+          options.htmlBody
+        ].join('\r\n')
+        : [
+          `From: ${fromEmail}`,
+          `To: ${options.to}`,
+          `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(options.subject)))}?=`,
+          'MIME-Version: 1.0',
+          'Content-Type: text/plain; charset=UTF-8',
+          '',
+          options.body
+        ].join('\r\n');
+
+      // Encode to base64url format
+      const encodedMessage = btoa(unescape(encodeURIComponent(emailContent)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const response = await fetch(
+        'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            raw: encodedMessage
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Gmail send error:', errorData);
+        return {
+          success: false,
+          error: errorData.error?.message || 'Falha ao enviar email'
+        };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error sending email:', error);
+      return { success: false, error: error.message || 'Erro ao enviar email' };
+    }
+  },
+
+  /**
+   * Send a notification email about a matched rule
+   */
+  async sendRuleNotification(options: {
+    to: string;
+    ruleName: string;
+    emailFrom: string;
+    emailSubject: string;
+    emailSnippet: string;
+    matchedCriteria: string[];
+  }): Promise<{ success: boolean; error?: string }> {
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #00E5A0 0%, #00B4D8 100%); padding: 20px; border-radius: 12px 12px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">🔔 Regra Acionada: ${options.ruleName}</h1>
+        </div>
+        
+        <div style="background: #1a1a2e; padding: 20px; color: #e0e0e0;">
+          <p style="margin-bottom: 20px;">Uma nova mensagem correspondeu à sua regra no <strong>MailWatch</strong>.</p>
+          
+          <div style="background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #00E5A0;">
+            <p style="margin: 5px 0;"><strong style="color: #00E5A0;">De:</strong> ${options.emailFrom}</p>
+            <p style="margin: 5px 0;"><strong style="color: #00E5A0;">Assunto:</strong> ${options.emailSubject}</p>
+            <p style="margin: 5px 0;"><strong style="color: #00E5A0;">Prévia:</strong> ${options.emailSnippet}</p>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <p style="margin-bottom: 10px;"><strong style="color: #00E5A0;">Critérios correspondidos:</strong></p>
+            <ul style="margin: 0; padding-left: 20px;">
+              ${options.matchedCriteria.map(c => `<li style="margin: 5px 0;">${c}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+        
+        <div style="background: #0f0f23; padding: 15px; border-radius: 0 0 12px 12px; text-align: center;">
+          <p style="color: #666; font-size: 12px; margin: 0;">
+            Esta notificação foi enviada automaticamente pelo MailWatch
+          </p>
+        </div>
+      </div>
+    `;
+
+    return this.sendEmail({
+      to: options.to,
+      subject: `[MailWatch] Regra "${options.ruleName}" acionada`,
+      body: `Regra "${options.ruleName}" foi acionada!\n\nDe: ${options.emailFrom}\nAssunto: ${options.emailSubject}\n\nCritérios: ${options.matchedCriteria.join(', ')}`,
+      htmlBody
+    });
   }
 };

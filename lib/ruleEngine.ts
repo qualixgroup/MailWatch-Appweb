@@ -2,7 +2,6 @@ import { gmailService, GmailMessage } from './gmailService';
 import { ruleService } from './ruleService';
 import { logService } from './logService';
 import { notificationService } from './notificationService';
-import { supabase, SUPABASE_URL } from './supabase';
 import { Rule, RuleStatus } from '../types';
 
 export interface RuleMatch {
@@ -77,34 +76,24 @@ export const ruleEngine = {
 
             // Send email notification if configured
             let emailSent = false;
-            let emailError = null;
+            let emailError: string | null = null;
 
             if (rule.notificationEmail) {
                 try {
-                    const { data: { session } } = await supabase.auth.getSession();
-
-                    const response = await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session?.access_token}`,
-                        },
-                        body: JSON.stringify({
-                            to: rule.notificationEmail,
-                            ruleName: rule.name,
-                            emailFrom: email.from,
-                            emailSubject: email.subject,
-                            emailSnippet: email.snippet,
-                            matchedCriteria: criteria
-                        })
+                    const result = await gmailService.sendRuleNotification({
+                        to: rule.notificationEmail,
+                        ruleName: rule.name,
+                        emailFrom: email.from,
+                        emailSubject: email.subject,
+                        emailSnippet: email.snippet,
+                        matchedCriteria: criteria
                     });
 
-                    if (response.ok) {
+                    if (result.success) {
                         emailSent = true;
                         actions.push(`Email enviado para ${rule.notificationEmail}`);
                     } else {
-                        const errorData = await response.json();
-                        emailError = errorData.error || 'Falha ao enviar email';
+                        emailError = result.error || 'Falha ao enviar email';
                     }
                 } catch (err: any) {
                     emailError = err.message || 'Erro ao enviar notificação';
