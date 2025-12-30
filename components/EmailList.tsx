@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { gmailService, GmailMessage, GmailConnection } from '../lib/gmailService';
+import { ruleEngine } from '../lib/ruleEngine';
 import EmailViewer from './EmailViewer';
 
 interface EmailListProps {
@@ -16,6 +17,8 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageToken, setPageToken] = useState<string | null>(null);
     const [pageTokens, setPageTokens] = useState<string[]>(['']); // Store tokens for each page
+    const [processingRules, setProcessingRules] = useState(false);
+    const [rulesResult, setRulesResult] = useState<{ matched: number; message: string } | null>(null);
 
     useEffect(() => {
         checkConnectionAndLoadEmails();
@@ -151,6 +154,38 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         return match ? match[1].trim() : fromStr;
     };
 
+    const handleApplyRules = async () => {
+        if (emails.length === 0) return;
+
+        setProcessingRules(true);
+        setRulesResult(null);
+
+        try {
+            const matches = await ruleEngine.processEmails(emails);
+            setRulesResult({
+                matched: matches.length,
+                message: matches.length > 0
+                    ? `${matches.length} email(s) processado(s) com regras!`
+                    : 'Nenhum email correspondeu às regras ativas.'
+            });
+
+            // Refresh emails to show updated state
+            if (matches.length > 0) {
+                await checkConnectionAndLoadEmails();
+            }
+
+            // Clear message after 5 seconds
+            setTimeout(() => setRulesResult(null), 5000);
+        } catch (err: any) {
+            setRulesResult({
+                matched: 0,
+                message: `Erro: ${err.message || 'Falha ao processar regras'}`
+            });
+        } finally {
+            setProcessingRules(false);
+        }
+    };
+
     // Calculate display range
     const startIndex = (currentPage - 1) * maxEmails + 1;
     const endIndex = Math.min(startIndex + emails.length - 1, stats.total);
@@ -218,14 +253,43 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                             </span>
                         )}
                     </div>
-                    <button
-                        onClick={() => checkConnectionAndLoadEmails()}
-                        className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-                        title="Atualizar"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">refresh</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleApplyRules}
+                            disabled={processingRules || emails.length === 0}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all ${processingRules
+                                    ? 'bg-primary/20 text-primary cursor-wait'
+                                    : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                }`}
+                            title="Aplicar regras aos emails carregados"
+                        >
+                            {processingRules ? (
+                                <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                            ) : (
+                                <span className="material-symbols-outlined text-[18px]">filter_alt</span>
+                            )}
+                            <span>Aplicar Regras</span>
+                        </button>
+                        <button
+                            onClick={() => checkConnectionAndLoadEmails()}
+                            className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                            title="Atualizar"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">refresh</span>
+                        </button>
+                    </div>
                 </div>
+
+                {/* Rules Result Message */}
+                {rulesResult && (
+                    <div className={`px-4 py-2 text-sm flex items-center gap-2 ${rulesResult.matched > 0 ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
+                        }`}>
+                        <span className="material-symbols-outlined text-[18px]">
+                            {rulesResult.matched > 0 ? 'check_circle' : 'info'}
+                        </span>
+                        {rulesResult.message}
+                    </div>
+                )}
 
                 {/* Email List */}
                 <div className="divide-y divide-border-dark max-h-[500px] overflow-y-auto">

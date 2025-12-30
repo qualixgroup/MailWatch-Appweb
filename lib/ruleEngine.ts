@@ -2,6 +2,7 @@ import { gmailService, GmailMessage } from './gmailService';
 import { ruleService } from './ruleService';
 import { logService } from './logService';
 import { notificationService } from './notificationService';
+import { supabase, SUPABASE_URL } from './supabase';
 import { Rule, RuleStatus } from '../types';
 
 export interface RuleMatch {
@@ -52,7 +53,7 @@ export const ruleEngine = {
     /**
      * Apply actions for a matched rule
      */
-    async applyRuleActions(email: GmailMessage, rule: Rule): Promise<boolean> {
+    async applyRuleActions(email: GmailMessage, rule: Rule, criteria: string[] = []): Promise<boolean> {
         try {
             const actions: string[] = [];
 
@@ -74,19 +75,57 @@ export const ruleEngine = {
                 actions.push(`Label aplicada: ${rule.actions.applyLabel}`);
             }
 
+            // Send email notification if configured
+            let emailSent = false;
+            let emailError = null;
+
+            if (rule.notificationEmail) {
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+
+                    const response = await fetch(`${SUPABASE_URL}/functions/v1/send-notification`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session?.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            to: rule.notificationEmail,
+                            ruleName: rule.name,
+                            emailFrom: email.from,
+                            emailSubject: email.subject,
+                            emailSnippet: email.snippet,
+                            matchedCriteria: criteria
+                        })
+                    });
+
+                    if (response.ok) {
+                        emailSent = true;
+                        actions.push(`Email enviado para ${rule.notificationEmail}`);
+                    } else {
+                        const errorData = await response.json();
+                        emailError = errorData.error || 'Falha ao enviar email';
+                    }
+                } catch (err: any) {
+                    emailError = err.message || 'Erro ao enviar notificação';
+                    console.error('Error sending notification email:', err);
+                }
+            }
+
             // Log the action
             await logService.addLog({
                 type: 'RuleMatch',
                 title: `Regra "${rule.name}" aplicada`,
                 description: `Email: "${email.subject}" de ${email.from}. Ações: ${actions.join(', ')}`,
-                status: 'success'
+                status: emailError ? 'error' : 'success'
             });
 
-            // Create notification
+            // Create notification record
             await notificationService.addNotification({
-                status: 'sent',
+                status: emailSent ? 'sent' : 'failed',
                 ruleName: rule.name,
-                recipient: rule.notificationEmail || 'N/A'
+                recipient: rule.notificationEmail || 'N/A',
+                error: emailError || undefined
             });
 
             return true;
@@ -134,7 +173,7 @@ export const ruleEngine = {
                         });
 
                         // Apply the rule actions
-                        await this.applyRuleActions(email, rule);
+                        await this.applyRuleActions(email, rule, criteria);
                     }
                 }
             }
