@@ -6,6 +6,7 @@ import { UserProfile } from '../types';
 import { profileService } from '../lib/profileService';
 import { gmailService, GmailConnection } from '../lib/gmailService';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -14,7 +15,6 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
-  const [connectingGoogle, setConnectingGoogle] = useState(false);
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -64,7 +64,6 @@ const Settings: React.FC = () => {
         timezone
       });
       setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
-      // Reload to ensure sync
       loadProfile();
     } catch (error) {
       setMessage({ type: 'error', text: 'Erro ao salvar configurações.' });
@@ -73,39 +72,9 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleConnectGoogle = async () => {
-    setConnectingGoogle(true);
-    setMessage(null);
-
-    try {
-      const authUrl = await gmailService.initiateOAuth();
-      // Redirect to Google OAuth
-      window.location.href = authUrl;
-    } catch (error: any) {
-      console.error('Failed to initiate OAuth', error);
-      setMessage({ type: 'error', text: error.message || 'Erro ao iniciar conexão com Google.' });
-      setConnectingGoogle(false);
-    }
-  };
-
-  const handleDisconnectGoogle = async () => {
-    setConnectingGoogle(true);
-    setMessage(null);
-
-    try {
-      const result = await gmailService.disconnect();
-      if (result.success) {
-        setGmailConnection({ connected: false });
-        setMessage({ type: 'success', text: 'Gmail desconectado com sucesso!' });
-        loadProfile();
-      } else {
-        setMessage({ type: 'error', text: result.error || 'Erro ao desconectar Gmail.' });
-      }
-    } catch (error: any) {
-      setMessage({ type: 'error', text: 'Erro ao desconectar Gmail.' });
-    } finally {
-      setConnectingGoogle(false);
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
   };
 
   const toggleSlackIntegration = async () => {
@@ -137,16 +106,19 @@ const Settings: React.FC = () => {
                 key={tab}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all whitespace-nowrap ${i === 0 ? 'bg-primary text-background-dark font-bold' : 'text-text-dim hover:bg-white/5 hover:text-white'}`}
               >
-                <span className="material-symbols-outlined text-[20px]">{['settings', 'person', 'extension', 'tune'][i]}</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  {['settings', 'person', 'hub', 'tune'][i]}
+                </span>
                 {tab}
               </button>
             ))}
           </nav>
         </aside>
 
-        <div className="flex-1 space-y-8">
-          <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+        <div className="flex-1 flex flex-col gap-8">
+          {/* Profile Section */}
+          <section className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
               <span className="material-symbols-outlined text-primary">person</span>
               Perfil do Usuário
             </h3>
@@ -202,24 +174,32 @@ const Settings: React.FC = () => {
                     className="w-full bg-background-dark border border-border-dark rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none"
                   >
                     <option>(GMT-03:00) São Paulo</option>
-                    <option>(GMT+00:00) UTC</option>
+                    <option>(GMT-05:00) New York</option>
+                    <option>(GMT+00:00) London</option>
                   </select>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="bg-surface-dark border border-border-dark rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+          {/* Integrations Section */}
+          <section className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <h3 className="text-lg font-bold mb-6 text-white flex items-center gap-3">
               <span className="material-symbols-outlined text-primary">hub</span>
               Integrações Conectadas
             </h3>
+
             <div className="space-y-4">
-              {/* Google Workspace Integration */}
+              {/* Google Integration */}
               <div className={`flex items-center justify-between p-4 bg-background-dark border rounded-xl transition-all ${gmailConnection.connected ? 'border-emerald-500/30' : 'border-border-dark'}`}>
                 <div className="flex items-center gap-4">
                   <div className="size-10 rounded-lg bg-white p-1.5 flex items-center justify-center">
-                    <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCs23Rh8t3UHr9Ur7Ql0jTlkOY4nvBphBD4v_u-92BK0gf6mGrjsfLmsGdR8oQIx4tRb9cQ1EigPp-TLg-m_N4U6n_hyDllk9z15574qE5fnbg-2QganLX2-vXJM12qytD1xxcjsOjocoFEjNo7yoOfHRJ7FZ9IqCRiq8LUZSmLb0T7_r86HVz-o7IYszQf5MS57ysdKkkk84DS93-5HQUnP35Rch7D_4wxaMB6VEAmOOWUu8epMa720mbtyOnzkayuElTFpbRRBC5M" alt="Gmail" className="w-full h-full object-contain" />
+                    <svg className="w-6 h-6" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                    </svg>
                   </div>
                   <div>
                     <p className="text-white font-bold">Google Workspace</p>
@@ -233,16 +213,21 @@ const Settings: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={gmailConnection.connected ? handleDisconnectGoogle : handleConnectGoogle}
-                  disabled={connectingGoogle}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${gmailConnection.connected ? 'text-red-400 hover:bg-red-400/10' : 'text-primary hover:bg-primary/10'} ${connectingGoogle ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {connectingGoogle && (
-                    <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
-                  )}
-                  {gmailConnection.connected ? 'Desconectar' : 'Conectar'}
-                </button>
+                {gmailConnection.connected ? (
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 text-xs font-bold rounded-lg text-red-400 hover:bg-red-400/10 transition-all"
+                  >
+                    Desconectar
+                  </button>
+                ) : (
+                  <a
+                    href="/login"
+                    className="px-4 py-2 text-xs font-bold rounded-lg text-primary hover:bg-primary/10 transition-all"
+                  >
+                    Conectar com Google
+                  </a>
+                )}
               </div>
 
               {/* Slack Integration */}
@@ -283,4 +268,3 @@ const Settings: React.FC = () => {
 };
 
 export default Settings;
-

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Rule, ActivityLog, RuleStatus } from '../types';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import EmailList from '../components/EmailList';
 
 interface DashboardProps {
   rules: Rule[];
@@ -36,6 +37,11 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
             change={stat.change}
           />
         ))}
+      </section>
+
+      {/* Email Inbox */}
+      <section>
+        <EmailList maxEmails={10} />
       </section>
 
       {/* Rules Table Snippet */}
@@ -105,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
               <div key={log.id} className="relative">
                 <div className="absolute -left-[21px] top-1 bg-surface-dark rounded-full p-1 border border-border-dark">
                   <div className={`size-2 rounded-full ${log.status === 'success' ? 'bg-emerald-500' :
-                      log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
+                    log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
                     }`}></div>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
