@@ -1,0 +1,5 @@
+{
+  "name": "MailWatch Dashboard",
+  "description": "A comprehensive email automation and monitoring platform that allows users to create triggers, track alerts, and manage email processing rules with a modern dark interface.",
+  "requestFramePermissions": []
+}

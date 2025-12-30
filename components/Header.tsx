@@ -1,0 +1,65 @@
+
+import React from 'react';
+import { useLocation } from 'react-router-dom';
+
+const Header: React.FC = () => {
+  const location = useLocation();
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path.includes('/dashboard')) return 'Visão Geral';
+    if (path.includes('/rules')) return 'Regras de E-mail';
+    if (path.includes('/notifications')) return 'Histórico de Notificações';
+    if (path.includes('/logs')) return 'Logs de Atividade';
+    if (path.includes('/settings')) return 'Configurações';
+    return 'Painel';
+  };
+
+  return (
+    <>
+      {/* Mobile Header */}
+      <header className="lg:hidden flex items-center justify-between p-4 border-b border-border-dark bg-surface-dark">
+        <div className="flex items-center gap-2 text-white font-bold">
+          <span className="material-symbols-outlined text-primary">mark_email_read</span>
+          <span>MailWatch</span>
+        </div>
+        <button className="text-white p-2">
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+      </header>
+
+      {/* Desktop Header */}
+      <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border-dark bg-background-dark/50 backdrop-blur-md sticky top-0 z-10 lg:ml-64">
+        <h2 className="text-xl font-bold text-white tracking-tight">{getPageTitle()}</h2>
+        
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <span className="absolute top-2.5 left-3 text-text-dim group-focus-within:text-primary material-symbols-outlined text-[20px] transition-colors">search</span>
+            <input 
+              className="bg-surface-dark border border-border-dark text-sm rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:ring-1 focus:ring-primary w-64 placeholder-text-dim/50 transition-all" 
+              placeholder="Buscar..." 
+              type="text"
+            />
+          </div>
+          
+          <div className="h-6 w-px bg-border-dark mx-1"></div>
+          
+          <div className="flex items-center gap-1 bg-surface-dark border border-border-dark rounded-lg p-1">
+            <button className="px-2.5 py-1 text-xs font-medium text-text-dim hover:text-white hover:bg-white/5 rounded transition-colors">EN</button>
+            <button className="px-2.5 py-1 text-xs font-bold text-primary bg-primary/10 rounded shadow-sm border border-primary/20 cursor-default">PT</button>
+          </div>
+          
+          <button className="p-2 text-text-dim hover:text-primary hover:bg-white/5 rounded-lg transition-colors" title="Notificações">
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border border-background-dark"></span>
+          </button>
+          
+          <button className="p-2 text-text-dim hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+            <span className="material-symbols-outlined text-[20px]">help</span>
+          </button>
+        </div>
+      </header>
+    </>
+  );
+};
+
+export default Header;
