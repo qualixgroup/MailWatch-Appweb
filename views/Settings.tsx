@@ -15,14 +15,13 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, t } = useSettings();
 
   // Tab State
   const [activeTab, setActiveTab] = useState('Geral');
 
   // Form State
   const [fullName, setFullName] = useState('');
-  const [language, setLanguage] = useState('Português (Brasil)');
   const [timezone, setTimezone] = useState('(GMT-03:00) São Paulo');
 
   useEffect(() => {
@@ -36,12 +35,16 @@ const Settings: React.FC = () => {
       if (data) {
         setProfile(data);
         setFullName(data.fullName);
-        setLanguage(data.language);
+        // Language is now managed by SettingsContext, we might want to sync if it differs
+        // but for now let's rely on the global setting which is quicker for UI
+        if (data.language && data.language !== settings.language) {
+          updateSettings({ language: data.language as any });
+        }
         setTimezone(data.timezone);
       }
     } catch (error) {
       console.error('Failed to load profile', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar perfil.' });
+      setMessage({ type: 'error', text: t('error') });
     } finally {
       setLoading(false);
     }
@@ -62,15 +65,16 @@ const Settings: React.FC = () => {
     setMessage(null);
 
     try {
+      // Update local profile service
       await profileService.updateProfile({
         fullName,
-        language,
+        language: settings.language,
         timezone
       });
-      setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
+      setMessage({ type: 'success', text: t('success_save') });
       loadProfile();
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao salvar configurações.' });
+      setMessage({ type: 'error', text: t('error_save') });
     } finally {
       setSaving(false);
     }
@@ -81,25 +85,25 @@ const Settings: React.FC = () => {
     window.location.href = '/login';
   };
 
-  const toggleSlackIntegration = async () => {
+  const toggleServiceIntegration = async (service: 'slack' | 'whatsapp') => {
     if (!profile) return;
     try {
-      await profileService.toggleIntegration('slack', profile);
+      await profileService.toggleIntegration(service, profile);
       loadProfile();
     } catch (error) {
-      setMessage({ type: 'error', text: 'Erro ao atualizar integração.' });
+      setMessage({ type: 'error', text: t('error') });
     }
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-text-dim">Carregando configurações...</div>;
+    return <div className="p-8 text-center text-text-dim">{t('loading')}</div>;
   }
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
       <PageHeader
-        title="Configurações"
-        description="Gerencie suas preferências, conta e integrações do MailWatch."
+        title={t('settings_title')}
+        description={t('settings_desc')}
       />
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -120,7 +124,7 @@ const Settings: React.FC = () => {
                   {tab === 'Integrações' && 'hub'}
                   {tab === 'Avançado' && 'settings'}
                 </span>
-                {tab}
+                {tab === 'Geral' ? t('general') : tab === 'Conta' ? t('account') : tab === 'Integrações' ? t('integrations') : t('advanced')}
               </button>
             ))}
           </nav>
@@ -139,7 +143,7 @@ const Settings: React.FC = () => {
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">person</span>
-                Perfil do Usuário
+                {t('user_profile')}
               </h3>
 
               <div className="space-y-6">
@@ -153,7 +157,7 @@ const Settings: React.FC = () => {
                   </div>
                   <div className="flex flex-col gap-2 flex-1">
                     <div className="flex flex-col">
-                      <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase mb-1">Nome Completo</label>
+                      <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase mb-1">{t('full_name')}</label>
                       <input
                         type="text"
                         value={fullName}
@@ -168,18 +172,18 @@ const Settings: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">Idioma</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">{t('language')}</label>
                     <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
+                      value={settings.language}
+                      onChange={(e) => updateSettings({ language: e.target.value as any })}
                       className="w-full bg-gray-50 dark:bg-background-dark border border-gray-200 dark:border-border-dark rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none transition-colors"
                     >
-                      <option>Português (Brasil)</option>
-                      <option>English (US)</option>
+                      <option value="pt-BR">Português (Brasil)</option>
+                      <option value="en-US">English (US)</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">Fuso Horário</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase tracking-wider">{t('timezone')}</label>
                     <select
                       value={timezone}
                       onChange={(e) => setTimezone(e.target.value)}
@@ -194,7 +198,7 @@ const Settings: React.FC = () => {
 
                 <div className="flex justify-end pt-4">
                   <Button variant="primary" icon={saving ? 'progress_activity' : 'save'} className="px-8 py-2.5" onClick={handleSave} disabled={saving}>
-                    {saving ? 'Salvando...' : 'Salvar Alterações'}
+                    {saving ? t('saving') : t('save_changes')}
                   </Button>
                 </div>
               </div>
@@ -206,13 +210,13 @@ const Settings: React.FC = () => {
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">tune</span>
-                Preferências do Sistema
+                {t('system_preferences')}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 dark:text-text-dim mb-2">
-                    Intervalo de Monitoramento Automático
+                    {t('monitor_interval')}
                   </label>
                   <div className="flex flex-col gap-2">
                     <select
@@ -227,8 +231,7 @@ const Settings: React.FC = () => {
                       <option value={3600000}>1 hora</option>
                     </select>
                     <p className="text-xs text-gray-500 dark:text-text-dim/60">
-                      Define a frequência com que o sistema verifica novos emails.
-                      Intervalos menores consomem mais quota da API do Gmail.
+                      {t('monitor_interval_desc')}
                     </p>
                   </div>
                 </div>
@@ -238,8 +241,8 @@ const Settings: React.FC = () => {
                   {/* Theme Toggle */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Aparência</p>
-                      <p className="text-xs text-gray-500 dark:text-text-dim">Alternar entre modo claro e escuro</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{t('appearance')}</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">{t('appearance_desc')}</p>
                     </div>
                     <div className="flex bg-gray-200 dark:bg-surface-lighter rounded-lg p-1">
                       <button
@@ -259,8 +262,8 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Sons de Notificação</p>
-                      <p className="text-xs text-gray-500 dark:text-text-dim">Tocar som ao aplicar regras</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{t('notification_sounds')}</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">{t('notification_sounds_desc')}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -275,8 +278,8 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
-                      <p className="font-medium text-gray-900 dark:text-white">Notificações Visuais</p>
-                      <p className="text-xs text-gray-500 dark:text-text-dim">Exibir popups de status</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{t('visual_notifications')}</p>
+                      <p className="text-xs text-gray-500 dark:text-text-dim">{t('visual_notifications_desc')}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -298,7 +301,7 @@ const Settings: React.FC = () => {
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">hub</span>
-                Integrações Conectadas
+                {t('connected_integrations')}
               </h3>
 
               <div className="space-y-4">
@@ -317,11 +320,11 @@ const Settings: React.FC = () => {
                       <p className="text-gray-900 dark:text-white font-bold">Google Workspace</p>
                       {gmailConnection.connected ? (
                         <div className="flex flex-col">
-                          <p className="text-xs font-bold text-emerald-500">Sincronização Ativa</p>
+                          <p className="text-xs font-bold text-emerald-500">{t('active_sync')}</p>
                           <p className="text-xs text-gray-500 dark:text-text-dim">{gmailConnection.email}</p>
                         </div>
                       ) : (
-                        <p className="text-xs font-bold text-gray-500 dark:text-text-dim">Desconectado</p>
+                        <p className="text-xs font-bold text-gray-500 dark:text-text-dim">{t('disconnected')}</p>
                       )}
                     </div>
                   </div>
@@ -330,14 +333,14 @@ const Settings: React.FC = () => {
                       onClick={handleLogout}
                       className="px-4 py-2 text-xs font-bold rounded-lg text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
                     >
-                      Desconectar
+                      {t('disconnect')}
                     </button>
                   ) : (
                     <a
                       href="/login"
                       className="px-4 py-2 text-xs font-bold rounded-lg text-primary hover:bg-primary/10 transition-all border border-transparent hover:border-primary/20"
                     >
-                      Conectar com Google
+                      {t('connect_google')}
                     </a>
                   )}
                 </div>
@@ -351,15 +354,38 @@ const Settings: React.FC = () => {
                     <div>
                       <p className="text-gray-900 dark:text-white font-bold">Slack Notifications</p>
                       <p className={`text-xs font-bold ${profile?.integrations.slack ? 'text-emerald-500' : 'text-gray-500 dark:text-text-dim'}`}>
-                        {profile?.integrations.slack ? 'Sincronização Ativa' : 'Desconectado'}
+                        {profile?.integrations.slack ? t('active_sync') : t('disconnected')}
                       </p>
                     </div>
                   </div>
                   <button
-                    onClick={toggleSlackIntegration}
+                    onClick={() => toggleServiceIntegration('slack')}
                     className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.slack ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
                   >
-                    {profile?.integrations.slack ? 'Desconectar' : 'Conectar'}
+                    {profile?.integrations.slack ? t('disconnect') : t('connect')}
+                  </button>
+                </div>
+
+                {/* WhatsApp Integration */}
+                <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${profile?.integrations.whatsapp ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark opacity-60'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className="size-10 rounded-lg bg-green-500 p-2 flex items-center justify-center border border-green-400 shadow-sm">
+                      <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-gray-900 dark:text-white font-bold">WhatsApp</p>
+                      <p className={`text-xs font-bold ${profile?.integrations.whatsapp ? 'text-emerald-500' : 'text-gray-500 dark:text-text-dim'}`}>
+                        {profile?.integrations.whatsapp ? t('active_sync') : t('disconnected')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleServiceIntegration('whatsapp')}
+                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.whatsapp ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
+                  >
+                    {profile?.integrations.whatsapp ? t('disconnect') : t('connect')}
                   </button>
                 </div>
               </div>

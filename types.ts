@@ -61,5 +61,6 @@ export interface UserProfile {
   integrations: {
     google: boolean;
     slack: boolean;
+    whatsapp: boolean;
   };
 }

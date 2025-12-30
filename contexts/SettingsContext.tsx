@@ -1,22 +1,26 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { translations, Language } from '../lib/translations';
 
 interface AppSettings {
     checkInterval: number; // in milliseconds
     enableSounds: boolean;
     enableToasts: boolean;
     theme: 'dark' | 'light';
+    language: Language;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
     checkInterval: 60000,
     enableSounds: true,
     enableToasts: true,
-    theme: 'dark'
+    theme: 'dark',
+    language: 'pt-BR'
 };
 
 interface SettingsContextType {
     settings: AppSettings;
     updateSettings: (newSettings: Partial<AppSettings>) => void;
+    t: (key: keyof typeof translations['pt-BR']) => string;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -33,7 +37,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const [settings, setSettings] = useState<AppSettings>(() => {
         try {
             const stored = localStorage.getItem('mailwatch_settings');
-            return stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // Ensure defaults for new fields
+                return { ...DEFAULT_SETTINGS, ...parsed };
+            }
+            return DEFAULT_SETTINGS;
         } catch {
             return DEFAULT_SETTINGS;
         }
@@ -47,8 +56,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
     };
 
+    const t = (key: keyof typeof translations['pt-BR']) => {
+        const lang = settings.language || 'pt-BR';
+        return translations[lang][key] || key;
+    };
+
     return (
-        <SettingsContext.Provider value={{ settings, updateSettings }}>
+        <SettingsContext.Provider value={{ settings, updateSettings, t }}>
             {children}
         </SettingsContext.Provider>
     );

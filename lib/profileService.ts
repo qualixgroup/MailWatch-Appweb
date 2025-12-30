@@ -39,7 +39,7 @@ export const profileService = {
                 avatarUrl: newProfile.avatar_url,
                 language: newProfile.language,
                 timezone: newProfile.timezone,
-                integrations: newProfile.integrations || { google: false, slack: false }
+                integrations: newProfile.integrations || { google: false, slack: false, whatsapp: false }
             };
         }
 
@@ -50,7 +50,7 @@ export const profileService = {
             avatarUrl: data.avatar_url,
             language: data.language,
             timezone: data.timezone,
-            integrations: data.integrations || { google: false, slack: false }
+            integrations: data.integrations || { google: false, slack: false, whatsapp: false }
         };
     },
 
@@ -79,7 +79,7 @@ export const profileService = {
         }
     },
 
-    async toggleIntegration(integration: 'google' | 'slack', currentProfile: UserProfile) {
+    async toggleIntegration(integration: 'google' | 'slack' | 'whatsapp', currentProfile: UserProfile) {
         const newIntegrations = {
             ...currentProfile.integrations,
             [integration]: !currentProfile.integrations[integration]
