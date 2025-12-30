@@ -7,6 +7,7 @@ export interface GmailConnection {
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const gmailService = {
   /**
@@ -44,6 +45,7 @@ export const gmailService = {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
         'Content-Type': 'application/json'
       }
     });
@@ -103,6 +105,7 @@ export const gmailService = {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
         'Content-Type': 'application/json'
       }
     });
