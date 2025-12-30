@@ -69,6 +69,51 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         await checkConnectionAndLoadEmails(token);
     };
 
+    const handleFirstPage = async () => {
+        if (currentPage <= 1) return;
+
+        setCurrentPage(1);
+        setPageTokens(['']);
+        await checkConnectionAndLoadEmails(undefined);
+    };
+
+    const handleLastPage = async () => {
+        // Note: Gmail API doesn't support jumping to last page directly
+        // We'll navigate forward page by page until we reach the end
+        // For now, this acts as a "skip ahead" by going 5 pages forward
+        if (!pageToken) return;
+
+        let currentToken = pageToken;
+        let pagesSkipped = 0;
+        const maxSkip = 5;
+
+        while (currentToken && pagesSkipped < maxSkip) {
+            const newPageTokens = [...pageTokens];
+            newPageTokens[currentPage + pagesSkipped] = currentToken;
+            setPageTokens(newPageTokens);
+
+            try {
+                const result = await gmailService.fetchEmailsWithPagination(maxEmails, currentToken);
+                if (result.nextPageToken) {
+                    currentToken = result.nextPageToken;
+                    pagesSkipped++;
+                } else {
+                    // Reached the last page
+                    setCurrentPage(prev => prev + pagesSkipped);
+                    setEmails(result.emails);
+                    setPageToken(null);
+                    return;
+                }
+            } catch {
+                break;
+            }
+        }
+
+        // If we didn't reach the end, just go to the last page we found
+        setCurrentPage(prev => prev + pagesSkipped);
+        await checkConnectionAndLoadEmails(currentToken);
+    };
+
     const handleEmailClick = (emailId: string) => {
         setSelectedEmailId(emailId);
     };
@@ -236,28 +281,54 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                         <span className="text-xs text-text-dim">
                             {emails.length > 0 ? `${startIndex}-${endIndex}` : '0'} de {stats.total.toLocaleString()}
                         </span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0.5">
+                            {/* First Page */}
+                            <button
+                                onClick={handleFirstPage}
+                                disabled={currentPage <= 1 || loading}
+                                className={`p-1.5 rounded-lg transition-all ${currentPage <= 1
+                                    ? 'text-text-dim/30 cursor-not-allowed'
+                                    : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    }`}
+                                title="Primeira página"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">first_page</span>
+                            </button>
+                            {/* Previous Page */}
                             <button
                                 onClick={handlePrevPage}
                                 disabled={currentPage <= 1 || loading}
                                 className={`p-1.5 rounded-lg transition-all ${currentPage <= 1
-                                        ? 'text-text-dim/30 cursor-not-allowed'
-                                        : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    ? 'text-text-dim/30 cursor-not-allowed'
+                                    : 'text-text-dim hover:text-primary hover:bg-primary/10'
                                     }`}
                                 title="Página anterior"
                             >
                                 <span className="material-symbols-outlined text-[20px]">chevron_left</span>
                             </button>
+                            {/* Next Page */}
                             <button
                                 onClick={handleNextPage}
                                 disabled={!pageToken || loading}
                                 className={`p-1.5 rounded-lg transition-all ${!pageToken
-                                        ? 'text-text-dim/30 cursor-not-allowed'
-                                        : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    ? 'text-text-dim/30 cursor-not-allowed'
+                                    : 'text-text-dim hover:text-primary hover:bg-primary/10'
                                     }`}
                                 title="Próxima página"
                             >
                                 <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                            </button>
+                            {/* Last Page */}
+                            <button
+                                onClick={handleLastPage}
+                                disabled={!pageToken || loading}
+                                className={`p-1.5 rounded-lg transition-all ${!pageToken
+                                    ? 'text-text-dim/30 cursor-not-allowed'
+                                    : 'text-text-dim hover:text-primary hover:bg-primary/10'
+                                    }`}
+                                title="Última página"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">last_page</span>
                             </button>
                         </div>
                     </div>
