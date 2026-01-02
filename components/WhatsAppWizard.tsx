@@ -77,27 +77,34 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
             }
 
             // 2. Save mapping in Supabase (Security: Link instance to User)
-            // Como não temos garantia de UNIQUE constraint em instance_name no banco,
-            // primeiro verificamos se já existe registro para este usuário e instância.
+            // A tabela whatsapp_instances tem unique constraint em user_id (1 instância por usuário).
+            // Verificamos se o usuário JÁ tem uma instância, independente do nome.
 
             const { data: existingInstance } = await supabase
                 .from('whatsapp_instances')
-                .select('id')
+                .select('id, instance_name')
                 .eq('user_id', user.id)
-                .eq('instance_name', safeInstanceName)
                 .maybeSingle();
 
             let dbError;
 
             if (existingInstance) {
-                // Update existing
+                // Usuário já tem instância. Vamos substituir pela nova.
+                // Idealmente, poderíamos limpar a anterior na Evolution API se soubéssemos que não é a mesma,
+                // mas vamos focar em atualizar o ponteiro no banco.
+                console.log(`Atualizando instância do usuário de ${existingInstance.instance_name} para ${safeInstanceName}`);
+
                 const { error } = await supabase
                     .from('whatsapp_instances')
-                    .update({ status: 'connecting' })
+                    .update({
+                        instance_name: safeInstanceName,
+                        status: 'connecting',
+                        // updated_at removido pois não existe na tabela
+                    })
                     .eq('id', existingInstance.id);
                 dbError = error;
             } else {
-                // Insert new
+                // Insert new (Primeira vez do usuário)
                 const { error } = await supabase
                     .from('whatsapp_instances')
                     .insert({
