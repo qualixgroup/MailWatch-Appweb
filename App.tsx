@@ -10,6 +10,7 @@ import Logs from './views/Logs';
 import Notifications from './views/Notifications';
 import Settings from './views/Settings';
 import AuthCallback from './views/AuthCallback';
+import WhatsAppConnect from './views/WhatsAppConnect';
 import { Rule, RuleStatus, ActivityLog, NotificationHistory } from './types';
 import { AuthProvider } from './contexts/AuthContext';
 import RequiresAuth from './components/RequiresAuth';
@@ -138,6 +139,7 @@ const App: React.FC = () => {
                             <Route path="/logs" element={<Logs logs={logs} onRefresh={fetchLogs} />} />
                             <Route path="/notifications" element={<Notifications history={notifications} onRefresh={fetchNotifications} />} />
                             <Route path="/settings" element={<Settings />} />
+                            <Route path="/whatsapp-connect" element={<WhatsAppConnect />} />
                           </Routes>
                         </div>
                       </div>

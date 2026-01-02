@@ -28,6 +28,16 @@ const Settings: React.FC = () => {
   useEffect(() => {
     loadProfile();
     loadGmailStatus();
+
+    // Listen for messages from popup
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data === 'whatsapp-connected') {
+        loadProfile();
+        setMessage({ type: 'success', text: t('whatsapp_connected_success') || 'WhatsApp conectado com sucesso!' });
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const loadProfile = async () => {
@@ -394,7 +404,15 @@ const Settings: React.FC = () => {
                         </div>
                       </div>
                       <button
-                        onClick={() => toggleServiceIntegration('whatsapp')}
+                        onClick={() => {
+                          if (profile?.integrations.whatsapp) {
+                            toggleServiceIntegration('whatsapp');
+                          } else {
+                            toggleServiceIntegration('whatsapp').then(() => {
+                              window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes');
+                            });
+                          }
+                        }}
                         className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.whatsapp ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
                       >
                         {profile?.integrations.whatsapp ? t('disconnect') : t('connect')}
@@ -402,8 +420,18 @@ const Settings: React.FC = () => {
                     </div>
 
                     {profile?.integrations.whatsapp && (
-                      <div className="pt-4 border-t border-gray-100 dark:border-border-dark/50">
-                        <WhatsAppWizard onConnected={loadProfile} />
+                      <div className="pt-4 border-t border-gray-100 dark:border-border-dark/50 flex flex-col gap-3">
+                        <div className="flex items-center gap-2 text-sm text-text-dim">
+                          <span className="material-symbols-outlined text-[18px]">info</span>
+                          <span>Para conectar, abra o assistente em uma nova janela.</span>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          icon="open_in_new"
+                          onClick={() => window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes')}
+                        >
+                          Abrir Assistente de Conexão
+                        </Button>
                       </div>
                     )}
                   </div>
