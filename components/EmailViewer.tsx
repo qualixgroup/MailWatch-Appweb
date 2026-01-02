@@ -5,9 +5,10 @@ interface EmailViewerProps {
     messageId: string;
     onClose: () => void;
     onMarkAsRead?: () => void;
+    onDelete?: () => void;
 }
 
-const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsRead }) => {
+const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsRead, onDelete }) => {
     const [email, setEmail] = useState<GmailFullMessage | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,21 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
         }
     };
 
+    const handleDelete = async () => {
+        if (!window.confirm('Tem certeza que deseja mover este email para a lixeira?')) return;
+
+        setActionLoading('delete');
+        if (onDelete) {
+            // Let parent handle it
+            await onDelete();
+        } else {
+            // Fallback internal delete
+            await gmailService.trashEmail(messageId);
+            onClose();
+        }
+        setActionLoading(null);
+    };
+
     const formatDate = (dateStr: string) => {
         try {
             const date = new Date(dateStr);
@@ -90,6 +106,18 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                         {loading ? 'Carregando...' : email?.subject || '(Sem assunto)'}
                     </h2>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleDelete}
+                            disabled={loading || !!actionLoading}
+                            className="p-2 text-text-dim hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
+                            title="Excluir"
+                        >
+                            {actionLoading === 'delete' ? (
+                                <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                            ) : (
+                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                            )}
+                        </button>
                         <button
                             onClick={handleArchive}
                             disabled={loading || !!actionLoading}

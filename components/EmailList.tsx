@@ -450,6 +450,10 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                     messageId={selectedEmailId}
                     onClose={handleCloseViewer}
                     onMarkAsRead={handleMarkAsRead}
+                    onDelete={() => {
+                        handleDeleteEmail(selectedEmailId);
+                        handleCloseViewer();
+                    }}
                 />
             )}
         </>
