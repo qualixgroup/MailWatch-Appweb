@@ -63,11 +63,30 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
 
             // 3. Get QR Code
             const qrResponse = await whatsappService.connectInstance(instanceName);
-            if (qrResponse?.qrcode.base64) {
-                setQrCode(qrResponse.qrcode.base64);
+            console.log('QR Response:', qrResponse);
+
+            // Tratar diferentes formatos de resposta da Evolution API
+            let qrCodeData = null;
+            if (qrResponse?.qrcode?.base64) {
+                qrCodeData = qrResponse.qrcode.base64;
+            } else if (qrResponse?.base64) {
+                qrCodeData = qrResponse.base64;
+            } else if (qrResponse?.code) {
+                qrCodeData = qrResponse.code;
+            } else if (typeof qrResponse === 'string') {
+                qrCodeData = qrResponse;
+            }
+
+            if (qrCodeData) {
+                // Garantir que é uma URL de data válida
+                if (!qrCodeData.startsWith('data:')) {
+                    qrCodeData = `data:image/png;base64,${qrCodeData}`;
+                }
+                setQrCode(qrCodeData);
                 setStep(2);
             } else {
-                setError('Não foi possível gerar o código QR. Tente novamente.');
+                console.error('QR Response format:', JSON.stringify(qrResponse));
+                setError('Não foi possível gerar o código QR. Formato inesperado.');
             }
         } catch (err: any) {
             setError(err.message || 'Erro ao criar instância.');
