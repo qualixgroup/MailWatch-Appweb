@@ -153,7 +153,7 @@ export const ruleEngine = {
                         .single();
 
                     if (instanceData?.instance_name) {
-                        const wsMessage = `📢 *Alerta MailWatch*\n\n*Regra:* ${rule.name}\n*De:* ${email.from}\n*Assunto:* ${email.subject}\n*Prévia:* ${email.snippet}\n\n_E-mail processado automaticamente._`;
+                        const wsMessage = `📢 *Alerta MailWatch*\n\n*Regra:* ${rule.name}\n*De:* ${email.from}\n*Assunto:* ${email.subject}\n*Prévia:* ${email.snippet}\n\n_Notificação enviada automaticamente_`;
 
                         await whatsappService.sendTextMessage(
                             instanceData.instance_name,
