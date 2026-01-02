@@ -54,23 +54,44 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
             return;
         }
 
+        if (!user) {
+            setError('Usuário não autenticado.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
+
+        // Gera nome seguro: userPREFIX_nomeOriginal
+        const safeInstanceName = `${user.id.substring(0, 8)}_${instanceName}`;
+
         try {
             // 1. Create instance in Evolution API via Proxy
-            await whatsappService.createInstance(instanceName);
-
-            // 2. Save mapping in Supabase
-            if (user) {
-                await supabase.from('whatsapp_instances').upsert({
-                    user_id: user.id,
-                    instance_name: instanceName,
-                    status: 'connecting'
-                });
+            // Verifica se ja existe ou tenta criar (API retorna erro se existir)
+            try {
+                await whatsappService.createInstance(safeInstanceName);
+            } catch (createErr: any) {
+                // Se erro for "already exists", talvez seja do próprio usuário tentando reconectar.
+                // Prosseguir para tentar conectar.
+                console.warn('Instance creation warning (might exist):', createErr);
             }
 
+            // 2. Save mapping in Supabase (Security: Link instance to User)
+            // Usamos UPSERT para garantir que se o usuário tentar o mesmo nome, atualizamos o status.
+            const { error: dbError } = await supabase.from('whatsapp_instances').upsert({
+                user_id: user.id,
+                instance_name: safeInstanceName,
+                status: 'connecting',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'instance_name' }); // Assumindo unique constraint em instance_name
+
+            if (dbError) throw dbError;
+
+            // Atualiza estado local para usar o nome seguro nos próximos passos (Polling e QR)
+            setInstanceName(safeInstanceName);
+
             // 3. Get QR Code
-            const qrResponse = await whatsappService.connectInstance(instanceName);
+            const qrResponse = await whatsappService.connectInstance(safeInstanceName);
             console.log('QR Response:', qrResponse);
 
             // Tratar diferentes formatos de resposta da Evolution API
@@ -94,9 +115,10 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
                 setStep(2);
             } else {
                 console.error('QR Response format:', JSON.stringify(qrResponse));
-                setError('Não foi possível gerar o código QR. Formato inesperado.');
+                setError('Não foi possível gerar o código QR. Tente novamente ou verifique se a instância já está conectada.');
             }
         } catch (err: any) {
+            console.error(err);
             setError(err.message || 'Erro ao criar instância.');
         } finally {
             setLoading(false);
