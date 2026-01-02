@@ -7,6 +7,7 @@ import { gmailService, GmailConnection } from '../lib/gmailService';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
+import WhatsAppWizard from '../components/WhatsAppWizard';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ const Settings: React.FC = () => {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const { settings, updateSettings, t } = useSettings();
 
   // Tab State
@@ -410,10 +412,10 @@ const Settings: React.FC = () => {
                         toggleServiceIntegration('whatsapp').then(() => loadWhatsappStatus());
                       } else {
                         if (profile?.integrations.whatsapp) {
-                          window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes');
+                          setIsWizardOpen(true);
                         } else {
                           toggleServiceIntegration('whatsapp').then(() => {
-                            window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes');
+                            setIsWizardOpen(true);
                           });
                         }
                       }
@@ -435,6 +437,29 @@ const Settings: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* WhatsApp Wizard Modal */}
+      {isWizardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsWizardOpen(false)}>
+          <div className="bg-white dark:bg-surface-dark w-full max-w-lg rounded-2xl shadow-2xl relative overflow-hidden border border-gray-100 dark:border-border-dark" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setIsWizardOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors z-10"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="p-1">
+              <WhatsAppWizard onConnected={() => {
+                setIsWizardOpen(false);
+                loadProfile();
+                loadWhatsappStatus();
+                setMessage({ type: 'success', text: 'WhatsApp conectado com sucesso!' });
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
