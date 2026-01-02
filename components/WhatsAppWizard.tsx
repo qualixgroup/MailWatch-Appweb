@@ -48,67 +48,67 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
         return () => clearInterval(interval);
     }, [step, instanceName, onConnected, user]);
 
-    const handleCreateInstance = async () => {
-        if (!/^[a-zA-Z0-9]+$/.test(instanceName)) {
-            setError('O nome da instância deve ser apenas alfanumérico.');
-            return;
+    // Auto-start connection process
+    useEffect(() => {
+        if (step === 1 && user && !loading && !qrCode) {
+            handleAutoConnect();
         }
+    }, [step, user]);
 
-        if (!user) {
-            setError('Usuário não autenticado.');
-            return;
-        }
+    const handleAutoConnect = async () => {
+        if (!user) return;
 
+        // Generate automatic instance name from email or metadata
+        const emailPrefix = user.email?.split('@')[0] || 'user';
+        // Clean to be alphanumeric only, max 15 chars
+        const cleanName = emailPrefix.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15);
+        const autoInstanceName = cleanName || 'whatsapp'; // Fallback
+
+        setInstanceName(autoInstanceName); // For UI display if needed
+        await createInstanceFlow(autoInstanceName);
+    };
+
+    const createInstanceFlow = async (baseName: string) => {
         setLoading(true);
         setError(null);
 
         // Gera nome seguro: userPREFIX_nomeOriginal
-        const safeInstanceName = `${user.id.substring(0, 8)}_${instanceName}`;
+        // Nota: baseName já vem limpo, mas safeInstanceName garante unicidade global com ID.
+        const safeInstanceName = `${user!.id.substring(0, 8)}_${baseName}`;
 
         try {
             // 1. Create instance in Evolution API via Proxy
-            // Verifica se ja existe ou tenta criar (API retorna erro se existir)
             try {
                 await whatsappService.createInstance(safeInstanceName);
             } catch (createErr: any) {
-                // Se erro for "already exists", talvez seja do próprio usuário tentando reconectar.
-                // Prosseguir para tentar conectar.
                 console.warn('Instance creation warning (might exist):', createErr);
             }
 
-            // 2. Save mapping in Supabase (Security: Link instance to User)
-            // A tabela whatsapp_instances tem unique constraint em user_id (1 instância por usuário).
-            // Verificamos se o usuário JÁ tem uma instância, independente do nome.
-
+            // 2. Save/Update mapping in Supabase (Constraint Safe)
             const { data: existingInstance } = await supabase
                 .from('whatsapp_instances')
                 .select('id, instance_name')
-                .eq('user_id', user.id)
+                .eq('user_id', user!.id)
                 .maybeSingle();
 
             let dbError;
 
             if (existingInstance) {
-                // Usuário já tem instância. Vamos substituir pela nova.
-                // Idealmente, poderíamos limpar a anterior na Evolution API se soubéssemos que não é a mesma,
-                // mas vamos focar em atualizar o ponteiro no banco.
-                console.log(`Atualizando instância do usuário de ${existingInstance.instance_name} para ${safeInstanceName}`);
-
+                // Update existing
                 const { error } = await supabase
                     .from('whatsapp_instances')
                     .update({
                         instance_name: safeInstanceName,
-                        status: 'connecting',
-                        // updated_at removido pois não existe na tabela
+                        status: 'connecting'
                     })
                     .eq('id', existingInstance.id);
                 dbError = error;
             } else {
-                // Insert new (Primeira vez do usuário)
+                // Insert new
                 const { error } = await supabase
                     .from('whatsapp_instances')
                     .insert({
-                        user_id: user.id,
+                        user_id: user!.id,
                         instance_name: safeInstanceName,
                         status: 'connecting'
                     });
@@ -117,66 +117,54 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
 
             if (dbError) throw dbError;
 
-            // Atualiza estado local para usar o nome seguro nos próximos passos (Polling e QR)
+            // Update local state for polling
             setInstanceName(safeInstanceName);
 
             // 3. Get QR Code
             const qrResponse = await whatsappService.connectInstance(safeInstanceName);
             console.log('QR Response:', qrResponse);
 
-            // Tratar diferentes formatos de resposta da Evolution API
             let qrCodeData = null;
-            if (qrResponse?.qrcode?.base64) {
-                qrCodeData = qrResponse.qrcode.base64;
-            } else if (qrResponse?.base64) {
-                qrCodeData = qrResponse.base64;
-            } else if (qrResponse?.code) {
-                qrCodeData = qrResponse.code;
-            } else if (typeof qrResponse === 'string') {
-                qrCodeData = qrResponse;
-            }
+            if (qrResponse?.qrcode?.base64) qrCodeData = qrResponse.qrcode.base64;
+            else if (qrResponse?.base64) qrCodeData = qrResponse.base64;
+            else if (qrResponse?.code) qrCodeData = qrResponse.code;
+            else if (typeof qrResponse === 'string') qrCodeData = qrResponse;
 
             if (qrCodeData) {
-                // Garantir que é uma URL de data válida
-                if (!qrCodeData.startsWith('data:')) {
-                    qrCodeData = `data:image/png;base64,${qrCodeData}`;
-                }
+                if (!qrCodeData.startsWith('data:')) qrCodeData = `data:image/png;base64,${qrCodeData}`;
                 setQrCode(qrCodeData);
                 setStep(2);
             } else {
-                console.error('QR Response format:', JSON.stringify(qrResponse));
-                setError('Não foi possível gerar o código QR. Tente novamente ou verifique se a instância já está conectada.');
+                setError('Não foi possível gerar o código QR. Tente novamente.');
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || 'Erro ao criar instância.');
+            setError(err.message || 'Erro ao iniciar conexão.');
         } finally {
             setLoading(false);
         }
     };
 
+    // Kept for deletion logic
     const handleDeleteInstance = async () => {
         if (!window.confirm('Tem certeza que deseja remover esta conexão?')) return;
-
         setLoading(true);
         try {
             await whatsappService.deleteInstance(instanceName);
-            if (user) {
-                await supabase.from('whatsapp_instances').delete().eq('user_id', user.id);
-            }
-            setStep(1);
-            setInstanceName('');
-            setQrCode(null);
-            onConnected(); // Refresh parent state
+            if (user) await supabase.from('whatsapp_instances').delete().eq('user_id', user.id);
+            // Reset to step 1 which will auto-trigger again? 
+            // Better to close modal or show "Disconnected" state.
+            // For now, reload status.
+            onConnected();
         } catch (err) {
-            console.error('Error deleting instance:', err);
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 transition-all shadow-lg max-w-2xl mx-auto">
+        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 transition-all shadow-lg max-w-2xl mx-auto min-h-[400px] flex flex-col justify-center">
             {/* Steps Indicator */}
             <div className="flex items-center justify-between mb-8 px-4">
                 {[1, 2, 3].map((s) => (
@@ -199,35 +187,15 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
                 </div>
             )}
 
-            {/* Step 1: Instance Name */}
+            {/* Step 1: Loading / Preparing (Replacing Input Form) */}
             {step === 1 && (
-                <div className="space-y-6 animate-fade-in">
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Conectar WhatsApp</h3>
-                        <p className="text-gray-500 dark:text-text-dim text-sm">Inicie definindo um nome único para sua instância de conexão.</p>
+                <div className="space-y-6 animate-fade-in text-center flex flex-col items-center">
+                    <div className="size-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                        <span className="material-symbols-outlined text-3xl text-primary animate-spin">sync</span>
                     </div>
-
-                    <div className="space-y-4">
-                        <label className="block">
-                            <span className="text-xs font-bold text-gray-500 dark:text-text-dim uppercase mb-2 block">Nome da Instância</span>
-                            <InputWithIcon
-                                icon="badge"
-                                placeholder="ex: MinhaEmpresa01"
-                                value={instanceName}
-                                onChange={(e) => setInstanceName(e.target.value)}
-                            />
-                            <p className="text-[10px] text-gray-400 mt-1 italic">Dica: Use apenas letras e números, sem espaços ou símbolos.</p>
-                        </label>
-
-                        <Button
-                            variant="primary"
-                            className="w-full py-3"
-                            onClick={handleCreateInstance}
-                            disabled={loading || !instanceName}
-                            icon={loading ? 'progress_activity' : 'arrow_forward'}
-                        >
-                            {loading ? 'Criando...' : 'Próximo'}
-                        </Button>
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Iniciando Conexão</h3>
+                        <p className="text-gray-500 dark:text-text-dim text-sm">Gerando instância segura e código QR...</p>
                     </div>
                 </div>
             )}
