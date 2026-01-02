@@ -1,9 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Rule, RuleStatus, RuleCondition } from '../types';
 import Button from '../components/Button';
 import InputWithIcon from '../components/InputWithIcon';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import WhatsAppWizard from '../components/WhatsAppWizard';
 
 interface RuleEditorProps {
   rules?: Rule[];
@@ -14,7 +16,11 @@ interface RuleEditorProps {
 const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const isEditing = !!id;
+
+  const [connectedInstance, setConnectedInstance] = useState<string | null>(null);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -43,6 +49,30 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
     }
   }, [id, rules, isEditing]);
 
+  useEffect(() => {
+    loadWhatsappStatus();
+  }, [user]);
+
+  const loadWhatsappStatus = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.from('whatsapp_instances')
+        .select('instance_name, status')
+        .eq('user_id', user.id)
+        .eq('status', 'connected')
+        .maybeSingle(); // Use maybeSingle to avoid errors if no row exists
+
+      if (data) {
+        setConnectedInstance(data.instance_name);
+      } else {
+        setConnectedInstance(null);
+      }
+    } catch (error) {
+      console.error('Error loading whatsapp status:', error);
+      setConnectedInstance(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isEditing) {
@@ -61,7 +91,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
   };
 
   return (
-    <div className="flex flex-col items-center py-4 animate-fade-in">
+    <div className="flex flex-col items-center py-4 animate-fade-in relative">
       <div className="w-full max-w-3xl">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
@@ -71,7 +101,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
               <span className="text-white">{isEditing ? 'Editar Regra' : 'Criar Nova Regra'}</span>
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight">{isEditing ? 'Editar Regra' : 'Nova Regra'}</h1>
-            {isEditing && <p className="text-text-dim mt-1">ID: #{id} - Modificando parâmetros</p>}
+            {/* ID hidden as requested */}
           </div>
           {isEditing && (
             <Button
@@ -146,7 +176,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
                 <span className="material-symbols-outlined text-primary">notifications_active</span>
                 Ações e Status
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="grid grid-cols-1 gap-6">
                 <label className="flex flex-col w-full">
                   <p className="text-white text-sm font-medium mb-2">E-mail de Notificação</p>
                   <InputWithIcon
@@ -158,18 +188,61 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
                     placeholder="alerta@empresa.com"
                   />
                 </label>
-                <label className="flex flex-col w-full">
-                  <p className="text-white text-sm font-medium mb-2">WhatsApp de Notificação (Opcional)</p>
-                  <InputWithIcon
-                    icon="chat"
-                    type="tel"
-                    value={formData.whatsappNumber || ''}
-                    onChange={e => setFormData({ ...formData, whatsappNumber: e.target.value })}
-                    placeholder="5521999999999"
-                    hint="Número com DDD e sem caracteres especiais."
-                  />
-                </label>
-                <div className="flex flex-col">
+
+                {/* WhatsApp Logic */}
+                <div className="flex flex-col gap-4 p-4 rounded-xl border border-border-dark bg-background-dark/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 bg-green-500/10 rounded-lg">
+                        <span className="material-symbols-outlined text-green-500">chat</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium text-sm">Notificação via WhatsApp</p>
+                        <p className="text-xs text-text-dim">
+                          {connectedInstance
+                            ? `Enviado por: ${connectedInstance} (Conectado)`
+                            : 'Nenhum WhatsApp conectado para envio.'}
+                        </p>
+                      </div>
+                    </div>
+                    {!connectedInstance && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        className="text-xs px-3 py-1.5"
+                        onClick={() => setIsWizardOpen(true)}
+                      >
+                        Conectar WhatsApp
+                      </Button>
+                    )}
+                    {connectedInstance && (
+                      <span className="text-emerald-500 text-xs font-bold flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                        Pronto para envio
+                      </span>
+                    )}
+                  </div>
+
+                  <label className="flex flex-col w-full">
+                    <p className="text-white text-sm font-medium mb-2">Número de Destino (Para quem enviar?)</p>
+                    <InputWithIcon
+                      icon="person"
+                      type="tel"
+                      value={formData.whatsappNumber || ''}
+                      onChange={e => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                      placeholder="5521999999999"
+                      hint="Digite o número que RECEBERÁ a notificação (com DDD)."
+                      disabled={!connectedInstance}
+                    />
+                    {!connectedInstance && (
+                      <p className="text-xs text-yellow-500 mt-1">
+                        ⚠️ Conecte um WhatsApp para habilitar este campo.
+                      </p>
+                    )}
+                  </label>
+                </div>
+
+                <div className="flex flex-col pt-2">
                   <p className="text-white text-sm font-medium mb-2">Status da Regra</p>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-background-dark/50 border border-border-dark">
                     <div className="flex items-center gap-3">
@@ -210,6 +283,27 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
           </div>
         </form>
       </div>
+
+      {/* WhatsApp Wizard Modal (Reused) */}
+      {isWizardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsWizardOpen(false)}>
+          <div className="bg-white dark:bg-surface-dark w-full max-w-lg rounded-2xl shadow-2xl relative overflow-hidden border border-gray-100 dark:border-border-dark" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setIsWizardOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors z-10"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="p-1">
+              <WhatsAppWizard onConnected={() => {
+                setIsWizardOpen(false);
+                loadWhatsappStatus(); // Refresh status here
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
