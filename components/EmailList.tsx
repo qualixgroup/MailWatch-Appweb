@@ -19,6 +19,24 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     const [pageTokens, setPageTokens] = useState<string[]>(['']); // Store tokens for each page
     const [processingRules, setProcessingRules] = useState(false);
     const [rulesResult, setRulesResult] = useState<{ matched: number; message: string } | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+    const handleDeleteEmail = async (emailId: string) => {
+        if (!window.confirm('Tem certeza que deseja mover este email para a lixeira?')) return;
+
+        // Optimistic update
+        setEmails(prev => prev.filter(e => e.id !== emailId));
+        setStats(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+        setActiveMenuId(null);
+
+        try {
+            await gmailService.trashEmail(emailId);
+        } catch (error) {
+            console.error('Failed to delete email:', error);
+            // Could revert here if needed, but for trash usually safe to ignore or just log
+            checkConnectionAndLoadEmails(); // Refresh to be sure
+        }
+    };
 
     useEffect(() => {
         checkConnectionAndLoadEmails();
@@ -258,8 +276,8 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                             onClick={handleApplyRules}
                             disabled={processingRules || emails.length === 0}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all ${processingRules
-                                    ? 'bg-primary/20 text-primary cursor-wait'
-                                    : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                ? 'bg-primary/20 text-primary cursor-wait'
+                                : 'bg-primary/10 text-primary hover:bg-primary/20'
                                 }`}
                             title="Aplicar regras aos emails carregados"
                         >
@@ -303,13 +321,13 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                             <div
                                 key={email.id}
                                 onClick={() => handleEmailClick(email.id)}
-                                className={`p-4 hover:bg-background-dark/50 transition-all cursor-pointer ${email.isUnread ? 'bg-primary/5' : ''}`}
+                                className={`p-4 hover:bg-background-dark/50 transition-all cursor-pointer group relative ${email.isUnread ? 'bg-primary/5' : ''}`}
                             >
                                 <div className="flex items-start gap-3">
-                                    <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${email.isUnread ? 'bg-primary' : 'bg-surface-dark border border-border-dark'}`}>
+                                    <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${email.isUnread ? 'bg-primary' : 'bg-surface-dark border border-border-dark'}`}>
                                         {extractName(email.from).charAt(0).toUpperCase()}
                                     </div>
-                                    <div className="flex-1 min-w-0">
+                                    <div className="flex-1 min-w-0 pr-8">
                                         <div className="flex items-center justify-between gap-2 mb-1">
                                             <p className={`truncate ${email.isUnread ? 'font-bold text-white' : 'text-text-dim'}`}>
                                                 {extractName(email.from)}
@@ -325,8 +343,35 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                                             {email.snippet}
                                         </p>
                                     </div>
+
+                                    {/* Action Menu Trigger (Visible on hover or if menu open) */}
+                                    <div className="absolute right-4 top-4" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                            onClick={() => setActiveMenuId(activeMenuId === email.id ? null : email.id)}
+                                            className={`p-1 rounded-full text-text-dim hover:text-white hover:bg-white/10 transition-all ${activeMenuId === email.id ? 'opacity-100 bg-white/10 text-white' : 'opacity-0 group-hover:opacity-100'}`}
+                                        >
+                                            <span className="material-symbols-outlined text-[20px]">more_vert</span>
+                                        </button>
+
+                                        {/* Dropdown Menu */}
+                                        {activeMenuId === email.id && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+                                                <div className="absolute right-0 top-8 w-32 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-20 overflow-hidden animate-fade-in">
+                                                    <button
+                                                        onClick={() => handleDeleteEmail(email.id)}
+                                                        className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                                        Excluir
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
                                     {email.isUnread && (
-                                        <div className="size-2 rounded-full bg-primary flex-shrink-0 mt-2"></div>
+                                        <div className="size-2 rounded-full bg-primary flex-shrink-0 mt-2 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none group-hover:opacity-0 transition-opacity"></div>
                                     )}
                                 </div>
                             </div>

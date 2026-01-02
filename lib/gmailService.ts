@@ -418,6 +418,31 @@ export const gmailService = {
   },
 
   /**
+   * Move an email to Trash
+   */
+  async trashEmail(messageId: string): Promise<boolean> {
+    const token = await this.getProviderToken();
+    if (!token) return false;
+
+    try {
+      const response = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/trash`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error trashing email:', error);
+      return false;
+    }
+  },
+
+  /**
    * Send an email using the user's Gmail account
    */
   async sendEmail(options: {
