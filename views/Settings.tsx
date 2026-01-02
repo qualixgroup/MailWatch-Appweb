@@ -7,7 +7,6 @@ import { gmailService, GmailConnection } from '../lib/gmailService';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useSettings } from '../contexts/SettingsContext';
-import WhatsAppWizard from '../components/WhatsAppWizard';
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +15,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [gmailConnection, setGmailConnection] = useState<GmailConnection>({ connected: false });
+  const [whatsappConnected, setWhatsappConnected] = useState(false);
   const { settings, updateSettings, t } = useSettings();
 
   // Tab State
@@ -28,11 +28,13 @@ const Settings: React.FC = () => {
   useEffect(() => {
     loadProfile();
     loadGmailStatus();
+    loadWhatsappStatus();
 
     // Listen for messages from popup
     const handleMessage = (event: MessageEvent) => {
       if (event.data === 'whatsapp-connected') {
         loadProfile();
+        loadWhatsappStatus();
         setMessage({ type: 'success', text: t('whatsapp_connected_success') || 'WhatsApp conectado com sucesso!' });
       }
     };
@@ -46,8 +48,6 @@ const Settings: React.FC = () => {
       if (data) {
         setProfile(data);
         setFullName(data.fullName);
-        // Language is now managed by SettingsContext, we might want to sync if it differs
-        // but for now let's rely on the global setting which is quicker for UI
         if (data.language && data.language !== settings.language) {
           updateSettings({ language: data.language as any });
         }
@@ -58,6 +58,26 @@ const Settings: React.FC = () => {
       setMessage({ type: 'error', text: t('error') });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWhatsappStatus = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase.from('whatsapp_instances')
+        .select('status')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data && data.status === 'connected') {
+        setWhatsappConnected(true);
+      } else {
+        setWhatsappConnected(false);
+      }
+    } catch (err) {
+      console.error('Error loading whatsapp status:', err);
+      // Don't modify connected state on error, or set false
+      setWhatsappConnected(false);
     }
   };
 
@@ -76,7 +96,6 @@ const Settings: React.FC = () => {
     setMessage(null);
 
     try {
-      // Update local profile service
       await profileService.updateProfile({
         fullName,
         language: settings.language,
@@ -97,17 +116,10 @@ const Settings: React.FC = () => {
   };
 
   const toggleServiceIntegration = async (service: 'slack' | 'whatsapp') => {
-    console.log('toggleServiceIntegration called for:', service);
-    if (!profile) {
-      console.error('No profile loaded');
-      return;
-    }
+    if (!profile) return;
     try {
-      console.log('Callling profileService.toggleIntegration...');
       await profileService.toggleIntegration(service, profile);
-      console.log('Toggled successfully, reloading profile...');
       await loadProfile();
-      console.log('Profile reloaded.');
     } catch (error) {
       console.error('Error in toggleServiceIntegration:', error);
       setMessage({ type: 'error', text: t('error') });
@@ -157,7 +169,6 @@ const Settings: React.FC = () => {
             </div>
           )}
 
-          {/* Tab: Conta - Profile Section */}
           {activeTab === 'Conta' && (
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
@@ -224,7 +235,6 @@ const Settings: React.FC = () => {
             </section>
           )}
 
-          {/* Tab: Geral - Preferences Section */}
           {activeTab === 'Geral' && (
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
@@ -256,8 +266,6 @@ const Settings: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-
-                  {/* Theme Toggle */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">{t('appearance')}</p>
@@ -315,7 +323,6 @@ const Settings: React.FC = () => {
             </section>
           )}
 
-          {/* Tab: Integrações - Connected Integrations */}
           {activeTab === 'Integrações' && (
             <section className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6 animate-fade-in transition-colors">
               <h3 className="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-3">
@@ -324,7 +331,6 @@ const Settings: React.FC = () => {
               </h3>
 
               <div className="space-y-4">
-                {/* Google Integration */}
                 <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${gmailConnection.connected ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark'}`}>
                   <div className="flex items-center gap-4">
                     <div className="size-10 rounded-lg bg-white p-1.5 flex items-center justify-center border border-gray-100 shadow-sm">
@@ -364,7 +370,6 @@ const Settings: React.FC = () => {
                   )}
                 </div>
 
-                {/* Slack Integration */}
                 <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${profile?.integrations.slack ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark opacity-60'}`}>
                   <div className="flex items-center gap-4">
                     <div className="size-10 rounded-lg bg-gray-200 dark:bg-surface-dark p-2 flex items-center justify-center">
@@ -385,10 +390,8 @@ const Settings: React.FC = () => {
                   </button>
                 </div>
 
-
-                {/* WhatsApp Integration */}
                 <div className="flex flex-col gap-4">
-                  <div className={`p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${profile?.integrations.whatsapp ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark'}`}>
+                  <div className={`p-4 bg-gray-50 dark:bg-background-dark border rounded-xl transition-all ${whatsappConnected ? 'border-emerald-500/30' : 'border-gray-200 dark:border-border-dark'}`}>
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-4">
                         <div className="size-10 rounded-lg bg-green-500 p-2 flex items-center justify-center border border-green-400 shadow-sm">
@@ -398,39 +401,53 @@ const Settings: React.FC = () => {
                         </div>
                         <div>
                           <p className="text-gray-900 dark:text-white font-bold">WhatsApp</p>
-                          <p className={`text-xs font-bold ${profile?.integrations.whatsapp ? 'text-emerald-500' : 'text-gray-500 dark:text-text-dim'}`}>
-                            {profile?.integrations.whatsapp ? t('active_sync') : t('disconnected')}
+                          <p className={`text-xs font-bold ${whatsappConnected ? 'text-emerald-500' : profile?.integrations.whatsapp ? 'text-yellow-500' : 'text-gray-500 dark:text-text-dim'}`}>
+                            {whatsappConnected ? t('active_sync') : profile?.integrations.whatsapp ? 'Aguardando Conexão' : t('disconnected')}
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (profile?.integrations.whatsapp) {
-                            toggleServiceIntegration('whatsapp');
-                          } else {
-                            toggleServiceIntegration('whatsapp').then(() => {
-                              window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes');
-                            });
-                          }
-                        }}
-                        className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.whatsapp ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
-                      >
-                        {profile?.integrations.whatsapp ? t('disconnect') : t('connect')}
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        {profile?.integrations.whatsapp && !whatsappConnected && (
+                          <Button
+                            variant="primary"
+                            className="px-4 py-2 text-xs"
+                            onClick={() => window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes')}
+                          >
+                            Conectar
+                          </Button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            if (profile?.integrations.whatsapp) {
+                              toggleServiceIntegration('whatsapp').then(() => loadWhatsappStatus());
+                            } else {
+                              toggleServiceIntegration('whatsapp').then(() => {
+                                window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes');
+                              });
+                            }
+                          }}
+                          className={`px-4 py-2 text-xs font-bold rounded-lg transition-all border border-transparent ${profile?.integrations.whatsapp ? 'text-red-500 hover:bg-red-500/10 hover:border-red-500/20' : 'text-primary hover:bg-primary/10 hover:border-primary/20'}`}
+                        >
+                          {profile?.integrations.whatsapp ? t('disconnect') : t('connect')}
+                        </button>
+                      </div>
                     </div>
 
-                    {profile?.integrations.whatsapp && (
+                    {profile?.integrations.whatsapp && whatsappConnected && (
                       <div className="pt-4 border-t border-gray-100 dark:border-border-dark/50 flex flex-col gap-3">
                         <div className="flex items-center gap-2 text-sm text-text-dim">
-                          <span className="material-symbols-outlined text-[18px]">info</span>
-                          <span>Para conectar, abra o assistente em uma nova janela.</span>
+                          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                          <span>WhatsApp conectado e pronto para enviar mensagens.</span>
                         </div>
                         <Button
                           variant="secondary"
-                          icon="open_in_new"
+                          icon="settings"
+                          className="w-full sm:w-auto"
                           onClick={() => window.open('/whatsapp-connect', 'WhatsAppConnect', 'width=520,height=750,scrollbars=yes,resizable=yes')}
                         >
-                          Abrir Assistente de Conexão
+                          Gerenciar Conexão
                         </Button>
                       </div>
                     )}
@@ -440,7 +457,6 @@ const Settings: React.FC = () => {
             </section>
           )}
 
-          {/* Tab: Avançado */}
           {activeTab === 'Avançado' && (
             <div className="flex flex-col items-center justify-center h-64 text-text-dim animate-fade-in">
               <span className="material-symbols-outlined text-4xl mb-4 opacity-50">construction</span>
