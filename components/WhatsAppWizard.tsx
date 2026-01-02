@@ -81,8 +81,7 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
             const { error: dbError } = await supabase.from('whatsapp_instances').upsert({
                 user_id: user.id,
                 instance_name: safeInstanceName,
-                status: 'connecting',
-                updated_at: new Date().toISOString()
+                status: 'connecting'
             }, { onConflict: 'instance_name' }); // Assumindo unique constraint em instance_name
 
             if (dbError) throw dbError;
