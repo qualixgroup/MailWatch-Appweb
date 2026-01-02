@@ -77,12 +77,36 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
             }
 
             // 2. Save mapping in Supabase (Security: Link instance to User)
-            // Usamos UPSERT para garantir que se o usuário tentar o mesmo nome, atualizamos o status.
-            const { error: dbError } = await supabase.from('whatsapp_instances').upsert({
-                user_id: user.id,
-                instance_name: safeInstanceName,
-                status: 'connecting'
-            }, { onConflict: 'instance_name' }); // Assumindo unique constraint em instance_name
+            // Como não temos garantia de UNIQUE constraint em instance_name no banco,
+            // primeiro verificamos se já existe registro para este usuário e instância.
+
+            const { data: existingInstance } = await supabase
+                .from('whatsapp_instances')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('instance_name', safeInstanceName)
+                .maybeSingle();
+
+            let dbError;
+
+            if (existingInstance) {
+                // Update existing
+                const { error } = await supabase
+                    .from('whatsapp_instances')
+                    .update({ status: 'connecting' })
+                    .eq('id', existingInstance.id);
+                dbError = error;
+            } else {
+                // Insert new
+                const { error } = await supabase
+                    .from('whatsapp_instances')
+                    .insert({
+                        user_id: user.id,
+                        instance_name: safeInstanceName,
+                        status: 'connecting'
+                    });
+                dbError = error;
+            }
 
             if (dbError) throw dbError;
 
