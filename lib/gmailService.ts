@@ -66,9 +66,9 @@ export const gmailService = {
     }
 
     try {
-      // Fetch message list
+      // Fetch message list - only INBOX (received emails)
       const listResponse = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}`,
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`,
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -138,8 +138,8 @@ export const gmailService = {
     }
 
     try {
-      // Build URL with optional pageToken
-      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}`;
+      // Build URL with optional pageToken - only INBOX (received emails)
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`;
       if (pageToken) {
         url += `&pageToken=${pageToken}`;
       }
