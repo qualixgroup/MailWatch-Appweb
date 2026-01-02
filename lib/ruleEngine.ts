@@ -4,7 +4,7 @@ import { logService } from './logService';
 import { notificationService } from './notificationService';
 import { whatsappService } from './whatsappService';
 import { supabase } from './supabase';
-import { Rule, RuleStatus } from '../types';
+import { Rule, RuleStatus, RuleCondition } from '../types';
 
 export interface RuleMatch {
     rule: Rule;
@@ -21,9 +21,33 @@ export const ruleEngine = {
 
         // Check subject filter
         if (rule.subjectFilter) {
-            const subjectMatch = email.subject.toLowerCase().includes(rule.subjectFilter.toLowerCase());
+            const subjectLC = email.subject.toLowerCase();
+            const filterLC = rule.subjectFilter.toLowerCase();
+            let subjectMatch = false;
+
+            // Maps user friendly condition string back to logic
+            // Note: RuleCondition enum values are the display strings (e.g. 'É exatamente')
+            switch (rule.condition) {
+                case RuleCondition.EXACT:
+                    subjectMatch = subjectLC === filterLC;
+                    break;
+                case RuleCondition.STARTS_WITH:
+                    subjectMatch = subjectLC.startsWith(filterLC);
+                    break;
+                case RuleCondition.ENDS_WITH:
+                    subjectMatch = subjectLC.endsWith(filterLC);
+                    break;
+                case RuleCondition.ALWAYS:
+                    subjectMatch = true;
+                    break;
+                case RuleCondition.CONTAINS:
+                default:
+                    subjectMatch = subjectLC.includes(filterLC);
+                    break;
+            }
+
             if (subjectMatch) {
-                criteria.push(`Assunto contém "${rule.subjectFilter}"`);
+                criteria.push(`Filtro "${rule.condition}": "${rule.subjectFilter}"`);
             }
         }
 
