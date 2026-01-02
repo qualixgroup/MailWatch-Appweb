@@ -91,9 +91,17 @@ const Rules: React.FC<RulesProps> = ({ rules, onToggleRule, onDeleteRule }) => {
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2 text-xs text-text-dim">
-                      <span className="material-symbols-outlined text-[14px]">mail</span>
-                      {rule.notificationEmail}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 text-xs text-text-dim">
+                        <span className="material-symbols-outlined text-[14px]">mail</span>
+                        {rule.notificationEmail}
+                      </div>
+                      {rule.whatsappNumber && (
+                        <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                          <span className="material-symbols-outlined text-[14px]">chat</span>
+                          {rule.whatsappNumber}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="p-4">
