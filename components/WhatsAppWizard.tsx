@@ -27,6 +27,14 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
                 try {
                     const state = await whatsappService.getConnectionState(instanceName);
                     if (state?.instance.state === 'open') {
+                        // Save connected status
+                        if (user) {
+                            await supabase.from('whatsapp_instances')
+                                .update({ status: 'connected' })
+                                .eq('user_id', user.id)
+                                .eq('instance_name', instanceName);
+                        }
+
                         setConnectionState('open');
                         setStep(3);
                         onConnected();
@@ -38,7 +46,7 @@ const WhatsAppWizard: React.FC<WhatsAppWizardProps> = ({ onConnected }) => {
             }, 5000);
         }
         return () => clearInterval(interval);
-    }, [step, instanceName, onConnected]);
+    }, [step, instanceName, onConnected, user]);
 
     const handleCreateInstance = async () => {
         if (!/^[a-zA-Z0-9]+$/.test(instanceName)) {

@@ -44,12 +44,15 @@ export interface ConnectionState {
 }
 
 export interface QRCodeResponse {
-    qrcode: {
-        instanceName: string;
-        pairingCode: string;
-        code: string; // Base64
-        base64: string;
-    }
+    qrcode?: {
+        instanceName?: string;
+        pairingCode?: string;
+        code?: string; // Base64
+        base64?: string;
+    };
+    base64?: string;
+    code?: string;
+    pairingCode?: string;
 }
 
 export const whatsappService = {
