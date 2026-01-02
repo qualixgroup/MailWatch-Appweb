@@ -21,6 +21,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
     subjectFilter: '',
     condition: RuleCondition.CONTAINS,
     notificationEmail: '',
+    whatsappNumber: '',
     status: RuleStatus.ACTIVE,
     icon: 'receipt_long'
   });
@@ -34,6 +35,7 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
           subjectFilter: existing.subjectFilter,
           condition: existing.condition,
           notificationEmail: existing.notificationEmail,
+          whatsappNumber: existing.whatsappNumber || '',
           status: existing.status,
           icon: existing.icon || 'receipt_long'
         });
@@ -154,6 +156,17 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
                     value={formData.notificationEmail}
                     onChange={e => setFormData({ ...formData, notificationEmail: e.target.value })}
                     placeholder="alerta@empresa.com"
+                  />
+                </label>
+                <label className="flex flex-col w-full">
+                  <p className="text-white text-sm font-medium mb-2">WhatsApp de Notificação (Opcional)</p>
+                  <InputWithIcon
+                    icon="chat"
+                    type="tel"
+                    value={formData.whatsappNumber || ''}
+                    onChange={e => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                    placeholder="5521999999999"
+                    hint="Número com DDD e sem caracteres especiais."
                   />
                 </label>
                 <div className="flex flex-col">

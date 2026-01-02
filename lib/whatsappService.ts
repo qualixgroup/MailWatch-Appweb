@@ -1,10 +1,30 @@
 
-import axios from 'axios';
+import { supabase } from './supabase';
 
-const API_URL = import.meta.env.VITE_EVOLUTION_API_URL;
-const API_KEY = import.meta.env.VITE_EVOLUTION_API_KEY;
+// Helper to call our Supabase proxy
+async function proxyRequest(path: string, method: 'GET' | 'POST' | 'DELETE' = 'GET', body?: any) {
+    // Get current session to pass the access token
+    const { data: { session } } = await supabase.auth.getSession();
 
-// Interfaces based on Evolution API v2 responses
+    if (!session) {
+        throw new Error('Usuário não autenticado. Faça login novamente.');
+    }
+
+    const { data, error } = await supabase.functions.invoke('evolution-proxy', {
+        body: { path, method, body },
+        headers: {
+            Authorization: `Bearer ${session.access_token}`
+        }
+    });
+
+    if (error) {
+        console.error(`Proxy request error (${path}):`, error);
+        throw error;
+    }
+
+    return data;
+}
+
 export interface WhatsAppInstance {
     instance: {
         instanceName: string;
@@ -33,40 +53,25 @@ export interface QRCodeResponse {
 }
 
 export const whatsappService = {
-    // Check if configuration is present
-    isConfigured(): boolean {
-        return !!API_URL && !!API_KEY;
-    },
-
-    // Get all instances (to check if user has one)
-    async fetchInstances(): Promise<string[]> { // Returns array of instance names
-        if (!this.isConfigured()) return [];
+    // Get all instances
+    async fetchInstances(): Promise<string[]> {
         try {
-            const response = await axios.get(`${API_URL}/instance/fetchInstances`, {
-                headers: { 'apikey': API_KEY }
-            });
-            return response.data.map((item: any) => item.instance.instanceName);
+            const data = await proxyRequest('/instance/fetchInstances');
+            return data.map((item: any) => item.instance.instanceName);
         } catch (error) {
             console.error('Error fetching instances:', error);
             return [];
         }
     },
 
-    // Create a new instance for the user
+    // Create a new instance
     async createInstance(instanceName: string): Promise<WhatsAppInstance | null> {
-        if (!this.isConfigured()) throw new Error('Evolution API not configured');
         try {
-            const response = await axios.post(`${API_URL}/instance/create`, {
+            return await proxyRequest('/instance/create', 'POST', {
                 instanceName: instanceName,
                 qrcode: true,
                 integration: "WHATSAPP-BAILEYS"
-            }, {
-                headers: {
-                    'apikey': API_KEY,
-                    'Content-Type': 'application/json'
-                }
             });
-            return response.data;
         } catch (error) {
             console.error('Error creating instance:', error);
             throw error;
@@ -75,13 +80,8 @@ export const whatsappService = {
 
     // Connect instance (Get QR Code)
     async connectInstance(instanceName: string): Promise<QRCodeResponse | null> {
-        if (!this.isConfigured()) return null;
         try {
-            // Usually returns the base64 QR code
-            const response = await axios.get(`${API_URL}/instance/connect/${instanceName}`, {
-                headers: { 'apikey': API_KEY }
-            });
-            return response.data;
+            return await proxyRequest(`/instance/connect/${instanceName}`);
         } catch (error) {
             console.error('Error connecting instance:', error);
             throw error;
@@ -90,12 +90,8 @@ export const whatsappService = {
 
     // Get connection state
     async getConnectionState(instanceName: string): Promise<ConnectionState | null> {
-        if (!this.isConfigured()) return null;
         try {
-            const response = await axios.get(`${API_URL}/instance/connectionState/${instanceName}`, {
-                headers: { 'apikey': API_KEY }
-            });
-            return response.data;
+            return await proxyRequest(`/instance/connectionState/${instanceName}`);
         } catch (error) {
             console.error('Error getting connection state:', error);
             return null;
@@ -104,26 +100,34 @@ export const whatsappService = {
 
     // Logout/Disconnect
     async logoutInstance(instanceName: string): Promise<void> {
-        if (!this.isConfigured()) return;
         try {
-            await axios.delete(`${API_URL}/instance/logout/${instanceName}`, {
-                headers: { 'apikey': API_KEY }
-            });
+            await proxyRequest(`/instance/logout/${instanceName}`, 'DELETE');
         } catch (error) {
             console.error('Error logging out instance:', error);
             throw error;
         }
     },
 
-    // Delete Instance (Optional cleanup)
+    // Delete Instance
     async deleteInstance(instanceName: string): Promise<void> {
-        if (!this.isConfigured()) return;
         try {
-            await axios.delete(`${API_URL}/instance/delete/${instanceName}`, {
-                headers: { 'apikey': API_KEY }
-            });
+            await proxyRequest(`/instance/delete/${instanceName}`, 'DELETE');
         } catch (error) {
             console.error('Error deleting instance:', error);
+            throw error;
+        }
+    },
+
+    // Send Message
+    async sendTextMessage(instanceName: string, number: string, text: string): Promise<any> {
+        try {
+            return await proxyRequest(`/message/sendText/${instanceName}`, 'POST', {
+                number: number.replace(/\D/g, ''), // Cleanup number
+                text: text,
+                linkPreview: false
+            });
+        } catch (error) {
+            console.error('Error sending message:', error);
             throw error;
         }
     }

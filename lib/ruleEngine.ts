@@ -2,6 +2,8 @@ import { gmailService, GmailMessage } from './gmailService';
 import { ruleService } from './ruleService';
 import { logService } from './logService';
 import { notificationService } from './notificationService';
+import { whatsappService } from './whatsappService';
+import { supabase } from './supabase';
 import { Rule, RuleStatus } from '../types';
 
 export interface RuleMatch {
@@ -109,13 +111,50 @@ export const ruleEngine = {
                 status: emailError ? 'error' : 'success'
             });
 
-            // Create notification record
+            // Create notification record for Email
             await notificationService.addNotification({
                 status: emailSent ? 'sent' : 'failed',
                 ruleName: rule.name,
                 recipient: rule.notificationEmail || 'N/A',
                 error: emailError || undefined
             });
+
+            // Send WhatsApp notification if configured
+            if (rule.whatsappNumber) {
+                try {
+                    // Get instance name for user
+                    const { data: instanceData } = await supabase
+                        .from('whatsapp_instances')
+                        .select('instance_name')
+                        .single();
+
+                    if (instanceData?.instance_name) {
+                        const wsMessage = `📢 *Alerta MailWatch*\n\n*Regra:* ${rule.name}\n*De:* ${email.from}\n*Assunto:* ${email.subject}\n\n_E-mail processado automaticamente._`;
+
+                        await whatsappService.sendTextMessage(
+                            instanceData.instance_name,
+                            rule.whatsappNumber,
+                            wsMessage
+                        );
+                        actions.push(`WhatsApp enviado para ${rule.whatsappNumber}`);
+
+                        // Log and record WhatsApp notification
+                        await notificationService.addNotification({
+                            status: 'sent',
+                            ruleName: rule.name,
+                            recipient: `WA: ${rule.whatsappNumber}`,
+                        });
+                    }
+                } catch (err: any) {
+                    console.error('Error sending WhatsApp notification:', err);
+                    await notificationService.addNotification({
+                        status: 'failed',
+                        ruleName: rule.name,
+                        recipient: `WA: ${rule.whatsappNumber}`,
+                        error: err.message || 'Erro Evolution API'
+                    });
+                }
+            }
 
             return true;
         } catch (error) {

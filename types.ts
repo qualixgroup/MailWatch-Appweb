@@ -21,6 +21,7 @@ export interface Rule {
   keywords?: string[];
   condition: RuleCondition;
   notificationEmail: string;
+  whatsappNumber?: string;
   status: RuleStatus;
   createdAt: string;
   icon?: string;

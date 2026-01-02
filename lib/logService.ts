@@ -27,6 +27,10 @@ export const logService = {
     },
 
     async addLog(log: Omit<ActivityLog, 'id' | 'timestamp' | 'created_at'>) {
+        // Obter usuário autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
         const { data, error } = await supabase
             .from('logs')
             .insert([
@@ -35,7 +39,8 @@ export const logService = {
                     title: log.title,
                     description: log.description,
                     status: log.status,
-                    details: log.details
+                    details: log.details,
+                    user_id: user.id
                 }
             ])
             .select()

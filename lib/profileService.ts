@@ -76,14 +76,18 @@ export const profileService = {
         if (error) {
             console.error('Error updating profile:', error);
             throw error;
+        } else {
+            console.log('Profile updated successfully in Supabase');
         }
     },
 
     async toggleIntegration(integration: 'google' | 'slack' | 'whatsapp', currentProfile: UserProfile) {
+        console.log('toggleIntegration called with:', integration, currentProfile.integrations);
         const newIntegrations = {
             ...currentProfile.integrations,
             [integration]: !currentProfile.integrations[integration]
         };
+        console.log('New integrations state:', newIntegrations);
 
         await this.updateProfile({ integrations: newIntegrations });
         return newIntegrations;

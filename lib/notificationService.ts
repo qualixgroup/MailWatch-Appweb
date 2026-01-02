@@ -31,6 +31,10 @@ export const notificationService = {
     },
 
     async addNotification(notification: Omit<NotificationHistory, 'id' | 'timestamp'>) {
+        // Obter usuário autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
         const { data, error } = await supabase
             .from('notifications')
             .insert([
@@ -38,7 +42,8 @@ export const notificationService = {
                     rule_name: notification.ruleName,
                     recipient: notification.recipient,
                     status: notification.status,
-                    error: notification.error
+                    error: notification.error,
+                    user_id: user.id
                 }
             ])
             .select()
@@ -53,13 +58,15 @@ export const notificationService = {
     },
 
     async clearHistory() {
+        // Obter usuário autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        // RLS policy garante que apenas notificações do usuário atual serão deletadas
         const { error } = await supabase
             .from('notifications')
             .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all (hacky way to safely delete all if no where clause is unsafe, but usually .delete().neq is fine or simply allowing full delete policy)
-        // proper way to delete all rows:
-        // .delete().gte('created_at', '1970-01-01') or similar. 
-        // Supabase-js requires a filter for delete.
+            .eq('user_id', user.id);
 
         if (error) {
             console.error('Error clearing history:', error);

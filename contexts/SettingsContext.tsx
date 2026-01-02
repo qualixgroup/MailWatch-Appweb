@@ -58,7 +58,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const t = (key: keyof typeof translations['pt-BR']) => {
         const lang = settings.language || 'pt-BR';
-        return translations[lang][key] || key;
+        // Fallback to pt-BR if selected language doesn't exist in translations
+        const dict = translations[lang] || translations['pt-BR'];
+        return dict[key] || key;
     };
 
     return (

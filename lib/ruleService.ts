@@ -20,6 +20,7 @@ export const ruleService = {
             subjectFilter: rule.subject_filter,
             condition: rule.condition as RuleCondition,
             notificationEmail: rule.notification_email,
+            whatsappNumber: rule.whatsapp_number,
             status: rule.status as RuleStatus,
             icon: rule.icon,
             createdAt: new Date(rule.created_at).toLocaleDateString('pt-BR')
@@ -27,6 +28,10 @@ export const ruleService = {
     },
 
     async createRule(rule: Omit<Rule, 'id' | 'createdAt'>) {
+        // Obter usuário autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
         const { data, error } = await supabase
             .from('rules')
             .insert([
@@ -35,8 +40,10 @@ export const ruleService = {
                     subject_filter: rule.subjectFilter,
                     condition: rule.condition,
                     notification_email: rule.notificationEmail,
+                    whatsapp_number: rule.whatsappNumber,
                     status: rule.status,
-                    icon: rule.icon
+                    icon: rule.icon,
+                    user_id: user.id
                 }
             ])
             .select()
@@ -58,6 +65,7 @@ export const ruleService = {
                 subject_filter: rule.subjectFilter,
                 condition: rule.condition,
                 notification_email: rule.notificationEmail,
+                whatsapp_number: rule.whatsappNumber,
                 status: rule.status,
                 icon: rule.icon
             })
