@@ -294,11 +294,24 @@ export const gmailService = {
       let htmlBody = '';
       const attachments: { filename: string; mimeType: string; size: number }[] = [];
 
+      // Helper to decode Base64Url to UTF-8
+      const decodeBase64 = (data: string) => {
+        try {
+          const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+          const binaryString = atob(base64);
+          const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+          return new TextDecoder('utf-8').decode(bytes);
+        } catch (e) {
+          console.error('Error decoding base64:', e);
+          return '';
+        }
+      };
+
       const extractBody = (part: any) => {
         if (part.mimeType === 'text/plain' && part.body?.data) {
-          body = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+          body = decodeBase64(part.body.data);
         } else if (part.mimeType === 'text/html' && part.body?.data) {
-          htmlBody = atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+          htmlBody = decodeBase64(part.body.data);
         } else if (part.filename && part.body?.attachmentId) {
           attachments.push({
             filename: part.filename,
@@ -318,7 +331,7 @@ export const gmailService = {
 
       // If body is in the main payload
       if (!body && !htmlBody && data.payload?.body?.data) {
-        const decodedBody = atob(data.payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        const decodedBody = decodeBase64(data.payload.body.data);
         if (data.payload.mimeType === 'text/html') {
           htmlBody = decodedBody;
         } else {
