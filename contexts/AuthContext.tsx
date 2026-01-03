@@ -43,6 +43,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     ? new Date(session.expires_at * 1000).toISOString()
                     : new Date(Date.now() + 3600 * 1000).toISOString(); // Default 1 hour
 
+                // Gmail scopes we're requesting
+                const scopes = [
+                    'https://www.googleapis.com/auth/gmail.readonly',
+                    'https://www.googleapis.com/auth/gmail.modify',
+                    'https://www.googleapis.com/auth/gmail.send'
+                ];
+
                 // Fire and forget - don't await to avoid blocking UI
                 supabase
                     .from('user_gmail_tokens')
@@ -52,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         refresh_token: session.provider_refresh_token,
                         token_expires_at: tokenExpiresAt,
                         gmail_email: session.user.email,
+                        scopes: scopes,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' })
                     .then(({ error }) => {
