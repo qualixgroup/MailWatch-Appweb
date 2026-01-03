@@ -82,6 +82,30 @@ export const ruleEngine = {
         try {
             const actions: string[] = [];
 
+            // 1. Check if ANY action for this rule/email has been processed
+            const { data: existing } = await supabase
+                .from('processed_emails')
+                .select('id')
+                .eq('message_id', email.id)
+                .eq('rule_id', rule.id!)
+                .limit(1)
+                .single();
+
+            if (existing) {
+                // Already processed
+                return true;
+            }
+
+            let emailSent = false;
+            let emailError: string | null = null;
+            let whatsAppSent = false;
+            let whatsAppError: string | null = null;
+
+            const { data: userData } = await supabase.auth.getUser();
+            const currentUserId = userData.user?.id;
+
+            if (!currentUserId) throw new Error('User not authenticated');
+
             // Mark as read if configured
             if (rule.actions?.markAsRead) {
                 await gmailService.markAsRead(email.id);
@@ -100,19 +124,22 @@ export const ruleEngine = {
                 actions.push(`Label aplicada: ${rule.actions.applyLabel}`);
             }
 
-            // Send email notification if configured
-            let emailSent = false;
-            let emailError: string | null = null;
-
+            // Send Email Notification if configured
             if (rule.notificationEmail) {
                 try {
-                    const result = await gmailService.sendRuleNotification({
+                    const result = await gmailService.sendEmail({
                         to: rule.notificationEmail,
-                        ruleName: rule.name,
-                        emailFrom: email.from,
-                        emailSubject: email.subject,
-                        emailSnippet: email.snippet,
-                        matchedCriteria: criteria
+                        subject: `Alerta: Regra "${rule.name}" acionada`,
+                        body: `Regra Acionada: ${rule.name}\n\nDe: ${email.from}\nAssunto: ${email.subject}\nPrévia: ${email.snippet}`,
+                        htmlBody: `
+                            <h2>Regra Acionada: ${rule.name}</h2>
+                            <p>Uma nova mensagem correspondeu à sua regra no MailWatch.</p>
+                            <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #00E699; margin: 20px 0;">
+                                <p><strong>De:</strong> ${email.from}</p>
+                                <p><strong>Assunto:</strong> ${email.subject}</p>
+                                <p><strong>Prévia:</strong> ${email.snippet}</p>
+                            </div>
+                        `
                     });
 
                     if (result.success) {
@@ -126,22 +153,6 @@ export const ruleEngine = {
                     console.error('Error sending notification email:', err);
                 }
             }
-
-            // Log the action
-            await logService.addLog({
-                type: 'RuleMatch',
-                title: `Regra "${rule.name}" aplicada`,
-                description: `Email: "${email.subject}" de ${email.from}. Ações: ${actions.join(', ')}`,
-                status: emailError ? 'error' : 'success'
-            });
-
-            // Create notification record for Email
-            await notificationService.addNotification({
-                status: emailSent ? 'sent' : 'failed',
-                ruleName: rule.name,
-                recipient: rule.notificationEmail || 'N/A',
-                error: emailError || undefined
-            });
 
             // Send WhatsApp notification if configured
             if (rule.whatsappNumber) {
@@ -160,24 +171,38 @@ export const ruleEngine = {
                             rule.whatsappNumber,
                             wsMessage
                         );
+                        whatsAppSent = true;
                         actions.push(`WhatsApp enviado para ${rule.whatsappNumber}`);
-
-                        // Log and record WhatsApp notification
-                        await notificationService.addNotification({
-                            status: 'sent',
-                            ruleName: rule.name,
-                            recipient: `WA: ${rule.whatsappNumber}`,
-                        });
                     }
                 } catch (err: any) {
+                    whatsAppError = err.message || 'Erro Evolution API';
                     console.error('Error sending WhatsApp notification:', err);
-                    await notificationService.addNotification({
-                        status: 'failed',
-                        ruleName: rule.name,
-                        recipient: `WA: ${rule.whatsappNumber}`,
-                        error: err.message || 'Erro Evolution API'
-                    });
                 }
+            }
+
+            // Centralized Logging & Recording
+            await notificationService.addNotification({
+                status: (emailSent || whatsAppSent) ? 'sent' : 'failed',
+                ruleName: rule.name,
+                recipient: [rule.notificationEmail, rule.whatsappNumber ? `WA:${rule.whatsappNumber}` : ''].filter(Boolean).join(', '),
+                error: emailError || whatsAppError || undefined
+            });
+
+            await logService.addLog({
+                type: 'RuleMatch',
+                title: `Regra "${rule.name}" aplicada`,
+                description: `Email: "${email.subject}". Ações: ${actions.join(', ')}`,
+                status: (emailSent || whatsAppSent) ? 'success' : 'error'
+            });
+
+            // Mark as processed to prevent duplicates
+            if (emailSent || whatsAppSent) {
+                await supabase.from('processed_emails').insert({
+                    user_id: currentUserId,
+                    message_id: email.id,
+                    rule_id: rule.id,
+                    action_type: 'rule_execution'
+                });
             }
 
             return true;
