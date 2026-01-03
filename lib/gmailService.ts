@@ -138,8 +138,8 @@ export const gmailService = {
     }
 
     try {
-      // Build URL with optional pageToken - only INBOX and Primary category
-      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX&q=category:primary`;
+      // Build URL with optional pageToken - only INBOX, removed category restriction for broader results
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`;
       if (pageToken) {
         url += `&pageToken=${pageToken}`;
       }
