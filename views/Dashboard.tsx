@@ -7,6 +7,7 @@ import StatusBadge from '../components/StatusBadge';
 import EmailList from '../components/EmailList';
 import EmailMonitorStatus from '../components/EmailMonitorStatus';
 import { emailMonitor } from '../lib/emailMonitor';
+import { supabase } from '../lib/supabase';
 
 interface DashboardProps {
   rules: Rule[];
@@ -16,10 +17,30 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
   const [monitorState, setMonitorState] = React.useState(emailMonitor.getState());
+  const [realtimeUpdates, setRealtimeUpdates] = React.useState(0);
 
   React.useEffect(() => {
     const unsubscribe = emailMonitor.subscribe(setMonitorState);
     return () => unsubscribe();
+  }, []);
+
+  // Supabase Realtime subscription for live updates
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'processed_emails' },
+        (payload) => {
+          console.log('✅ Email processado em tempo real:', payload.new);
+          // Incrementar contador forçando re-render
+          setRealtimeUpdates(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const activeRulesCount = rules.filter(r => r.status === RuleStatus.ACTIVE).length;
