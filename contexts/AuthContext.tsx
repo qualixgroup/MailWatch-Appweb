@@ -36,53 +36,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(session?.user ?? null);
             setLoading(false);
 
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-                // DEBUG: Log to DB to verify token presence
-                const hasRefreshToken = !!session?.provider_refresh_token;
-                const hasAccessToken = !!session?.provider_token;
-
-                if (session?.user) {
-                    await supabase.from('logs').insert({
-                        type: 'Debug',
-                        title: 'Auth Check',
-                        description: `Event: ${event}. Has RT: ${hasRefreshToken}. Has AT: ${hasAccessToken}`,
+            // Only save token on SIGNED_IN to avoid loops
+            if (event === 'SIGNED_IN' && session?.provider_refresh_token && session.user) {
+                // Fire and forget - don't await to avoid blocking UI
+                supabase
+                    .from('user_gmail_tokens')
+                    .upsert({
                         user_id: session.user.id,
-                        status: hasRefreshToken ? 'success' : 'info'
+                        access_token: session.provider_token,
+                        refresh_token: session.provider_refresh_token,
+                        expires_at: session.expires_at,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' })
+                    .then(({ error }) => {
+                        if (error) console.error("Error saving tokens:", error);
+                        else console.log("Tokens saved successfully");
                     });
-                }
-
-                // Persist Google Tokens if available
-                if (session?.provider_refresh_token && session.user) {
-                    console.log("Found provider refresh token, saving to DB...");
-                    const { error } = await supabase
-                        .from('user_gmail_tokens')
-                        .upsert({
-                            user_id: session.user.id,
-                            access_token: session.provider_token,
-                            refresh_token: session.provider_refresh_token,
-                            expires_at: session.expires_at,
-                            updated_at: new Date().toISOString()
-                        }, { onConflict: 'user_id' });
-
-                    if (error) {
-                        console.error("Error saving tokens:", error);
-                        await supabase.from('logs').insert({
-                            type: 'Debug',
-                            title: 'Token Save Error',
-                            description: error.message,
-                            user_id: session.user.id,
-                            status: 'error'
-                        });
-                    } else {
-                        await supabase.from('logs').insert({
-                            type: 'Debug',
-                            title: 'Token Saved',
-                            description: 'Successfully saved provider tokens to custom table',
-                            user_id: session.user.id,
-                            status: 'success'
-                        });
-                    }
-                }
             }
         });
 
