@@ -31,10 +31,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         // Listen for changes on auth state (logged in, signed out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+
+            // Persist Google Tokens if available
+            if (session?.provider_refresh_token && session.user) {
+                console.log("Found provider refresh token, saving to DB...");
+                const { error } = await supabase
+                    .from('user_gmail_tokens')
+                    .upsert({
+                        user_id: session.user.id,
+                        access_token: session.provider_token,
+                        refresh_token: session.provider_refresh_token,
+                        expires_at: session.expires_at, // This is session expiry, not necessarily token expiry, but good proxy
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+
+                if (error) console.error("Error saving tokens:", error);
+                else console.log("Tokens saved successfully");
+            }
         });
 
         return () => subscription.unsubscribe();

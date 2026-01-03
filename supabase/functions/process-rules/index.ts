@@ -120,27 +120,30 @@ serve(async (req) => {
 
             try {
 
-                // Check if identities exist
-                if (!user.identities || user.identities.length === 0) {
-                    log("No identities found for user");
-                    continue;
-                }
-
-                // Check for Google Identity
-                const googleIdentity = user.identities.find((id) => id.provider === "google");
-
-                if (!googleIdentity) {
-                    log(`No Google identity found. Providers: ${user.identities.map(i => i.provider).join(', ')}`);
-                    continue;
-                }
-
                 // Retrieve Refresh Token
-                // Note: provider_refresh_token might be nested in identity_data depending on Supabase version/config
-                let refreshToken = googleIdentity?.identity_data?.provider_refresh_token;
+                // Strategy 1: Check user_gmail_tokens table (Preferred)
+                let refreshToken: string | undefined;
+
+                const { data: tokenRecord } = await supabase
+                    .from('user_gmail_tokens')
+                    .select('refresh_token')
+                    .eq('user_id', listUser.id)
+                    .single();
+
+                if (tokenRecord?.refresh_token) {
+                    refreshToken = tokenRecord.refresh_token;
+                    log(`Found refresh token in user_gmail_tokens table`);
+                } else {
+                    // Strategy 2: Fallback to identities
+                    const googleIdentity = user.identities?.find((id) => id.provider === "google");
+                    if (googleIdentity?.identity_data?.provider_refresh_token) {
+                        refreshToken = googleIdentity.identity_data.provider_refresh_token;
+                        log(`Found refresh token in identity_data`);
+                    }
+                }
 
                 if (!refreshToken) {
-                    log(`No refresh token in identity_data.`);
-                    log(`Identity Data: ${JSON.stringify(googleIdentity.identity_data)}`);
+                    log(`No refresh token found (checked DB table and identity_data).`);
                     continue;
                 }
 
