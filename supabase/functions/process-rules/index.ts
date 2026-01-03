@@ -174,7 +174,7 @@ serve(async (req) => {
                     .from("rules")
                     .select("*")
                     .eq("user_id", user.id)
-                    .eq("status", "active");
+                    .eq("status", "Ativo");
 
                 if (!rules || rules.length === 0) {
                     log(`No active rules found`);
