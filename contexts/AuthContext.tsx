@@ -38,6 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Only save token on SIGNED_IN to avoid loops
             if (event === 'SIGNED_IN' && session?.provider_refresh_token && session.user) {
+                // Calculate token expiration timestamp (session.expires_at is Unix timestamp)
+                const tokenExpiresAt = session.expires_at
+                    ? new Date(session.expires_at * 1000).toISOString()
+                    : new Date(Date.now() + 3600 * 1000).toISOString(); // Default 1 hour
+
                 // Fire and forget - don't await to avoid blocking UI
                 supabase
                     .from('user_gmail_tokens')
@@ -45,7 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         user_id: session.user.id,
                         access_token: session.provider_token,
                         refresh_token: session.provider_refresh_token,
-                        expires_at: session.expires_at,
+                        token_expires_at: tokenExpiresAt,
+                        gmail_email: session.user.email,
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'user_id' })
                     .then(({ error }) => {
