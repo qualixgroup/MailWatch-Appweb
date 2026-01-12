@@ -271,5 +271,89 @@ export const ruleEngine = {
      */
     async processEmail(email: GmailMessage): Promise<RuleMatch[]> {
         return this.processEmails([email]);
+    },
+
+    /**
+     * Process ALL emails from today and return a summary
+     * Returns: { alreadyProcessed, newlyProcessed, totalToday }
+     */
+    async processAllTodayEmails(): Promise<{
+        alreadyProcessed: number;
+        newlyProcessed: number;
+        totalToday: number;
+        message: string;
+    }> {
+        try {
+            // 1. Get user ID
+            const { data: userData } = await supabase.auth.getUser();
+            const userId = userData.user?.id;
+            if (!userId) throw new Error('User not authenticated');
+
+            // 2. Fetch ALL emails from today
+            console.log('Fetching all emails from today...');
+            const allTodayEmails = await gmailService.fetchAllTodayEmails();
+
+            if (allTodayEmails.length === 0) {
+                return {
+                    alreadyProcessed: 0,
+                    newlyProcessed: 0,
+                    totalToday: 0,
+                    message: 'Nenhum email encontrado para hoje.'
+                };
+            }
+
+            // 3. Get IDs of already processed emails (today)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const { data: processedData } = await supabase
+                .from('processed_emails')
+                .select('message_id')
+                .eq('user_id', userId)
+                .gte('created_at', today.toISOString());
+
+            const processedIds = new Set((processedData || []).map(p => p.message_id));
+            const alreadyProcessed = processedIds.size;
+
+            // 4. Filter out already processed emails
+            const unprocessedEmails = allTodayEmails.filter(email => !processedIds.has(email.id));
+
+            console.log(`Found ${allTodayEmails.length} emails today, ${alreadyProcessed} already processed, ${unprocessedEmails.length} to process`);
+
+            // 5. Process only the new ones
+            let newlyProcessed = 0;
+            if (unprocessedEmails.length > 0) {
+                const matches = await this.processEmails(unprocessedEmails);
+                newlyProcessed = matches.length;
+            }
+
+            // 6. Build summary message
+            let message = '';
+            if (alreadyProcessed > 0 && newlyProcessed > 0) {
+                message = `✅ ${alreadyProcessed} notificação(ões) já enviada(s) hoje + ${newlyProcessed} nova(s) agora!`;
+            } else if (alreadyProcessed > 0 && newlyProcessed === 0) {
+                message = `✅ ${alreadyProcessed} notificação(ões) já enviada(s) hoje. Nenhuma nova correspondência.`;
+            } else if (newlyProcessed > 0) {
+                message = `✅ ${newlyProcessed} nova(s) notificação(ões) enviada(s)!`;
+            } else {
+                message = `Nenhum email correspondeu às regras ativas. (${allTodayEmails.length} emails verificados)`;
+            }
+
+            return {
+                alreadyProcessed,
+                newlyProcessed,
+                totalToday: allTodayEmails.length,
+                message
+            };
+
+        } catch (error: any) {
+            console.error('Error processing all today emails:', error);
+            return {
+                alreadyProcessed: 0,
+                newlyProcessed: 0,
+                totalToday: 0,
+                message: `Erro: ${error.message || 'Falha ao processar emails'}`
+            };
+        }
     }
 };

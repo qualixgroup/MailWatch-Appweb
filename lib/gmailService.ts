@@ -138,8 +138,8 @@ export const gmailService = {
     }
 
     try {
-      // Build URL with optional pageToken - only INBOX Primary category
-      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX&q=category:primary`;
+      // Build URL with optional pageToken - only INBOX
+      let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=${maxResults}&labelIds=INBOX`;
       if (pageToken) {
         url += `&pageToken=${pageToken}`;
       }
@@ -261,6 +261,85 @@ export const gmailService = {
     } catch (error) {
       console.error('Error fetching email stats:', error);
       return { total: 0, unread: 0 };
+    }
+  },
+
+  /**
+   * Fetch ALL emails from today (with pagination)
+   */
+  async fetchAllTodayEmails(): Promise<GmailMessage[]> {
+    const token = await this.getProviderToken();
+    if (!token) {
+      console.error('No Google provider token available');
+      return [];
+    }
+
+    try {
+      const allEmails: GmailMessage[] = [];
+      let pageToken: string | undefined;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Gmail date format: YYYY/MM/DD
+      const dateStr = `${today.getFullYear()}/${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}`;
+
+      // Fetch pages until no more
+      do {
+        let url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=50&labelIds=INBOX&q=after:${dateStr}`;
+        if (pageToken) {
+          url += `&pageToken=${pageToken}`;
+        }
+
+        const listResponse = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!listResponse.ok) {
+          console.error('Gmail API error fetching today emails:', await listResponse.json());
+          break;
+        }
+
+        const listData = await listResponse.json();
+        const messages = listData.messages || [];
+        pageToken = listData.nextPageToken;
+
+        // Fetch details for each message
+        for (const msg of messages) {
+          const detailResponse = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date`,
+            { headers: { 'Authorization': `Bearer ${token}` } }
+          );
+
+          if (!detailResponse.ok) continue;
+
+          const detail = await detailResponse.json();
+          const headers = detail.payload?.headers || [];
+          const getHeader = (name: string) =>
+            headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+
+          allEmails.push({
+            id: detail.id,
+            threadId: detail.threadId,
+            subject: getHeader('Subject'),
+            from: getHeader('From'),
+            to: getHeader('To'),
+            date: getHeader('Date'),
+            snippet: detail.snippet || '',
+            labelIds: detail.labelIds || [],
+            isUnread: detail.labelIds?.includes('UNREAD') || false
+          });
+        }
+
+        console.log(`Fetched ${allEmails.length} emails from today so far...`);
+
+      } while (pageToken);
+
+      console.log(`Total emails from today: ${allEmails.length}`);
+      return allEmails;
+
+    } catch (error) {
+      console.error('Error fetching all today emails:', error);
+      return [];
     }
   },
 

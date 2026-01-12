@@ -173,27 +173,25 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
     };
 
     const handleApplyRules = async () => {
-        if (emails.length === 0) return;
-
         setProcessingRules(true);
         setRulesResult(null);
 
         try {
-            const matches = await ruleEngine.processEmails(emails);
+            // Process ALL emails from today, not just visible ones
+            const result = await ruleEngine.processAllTodayEmails();
+
             setRulesResult({
-                matched: matches.length,
-                message: matches.length > 0
-                    ? `${matches.length} email(s) processado(s) com regras!`
-                    : 'Nenhum email correspondeu às regras ativas.'
+                matched: result.newlyProcessed,
+                message: result.message
             });
 
             // Refresh emails to show updated state
-            if (matches.length > 0) {
+            if (result.newlyProcessed > 0) {
                 await checkConnectionAndLoadEmails();
             }
 
-            // Clear message after 5 seconds
-            setTimeout(() => setRulesResult(null), 5000);
+            // Clear message after 8 seconds (longer since it has more info)
+            setTimeout(() => setRulesResult(null), 8000);
         } catch (err: any) {
             setRulesResult({
                 matched: 0,
@@ -274,19 +272,19 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleApplyRules}
-                            disabled={processingRules || emails.length === 0}
+                            disabled={processingRules}
                             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all ${processingRules
                                 ? 'bg-primary/20 text-primary cursor-wait'
                                 : 'bg-primary/10 text-primary hover:bg-primary/20'
                                 }`}
-                            title="Aplicar regras aos emails carregados"
+                            title="Aplicar regras a TODOS os emails de hoje"
                         >
                             {processingRules ? (
                                 <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
                             ) : (
                                 <span className="material-symbols-outlined text-[18px]">filter_alt</span>
                             )}
-                            <span>Aplicar Regras</span>
+                            <span>{processingRules ? 'Verificando...' : 'Aplicar Regras (Hoje)'}</span>
                         </button>
                         <button
                             onClick={() => checkConnectionAndLoadEmails()}
