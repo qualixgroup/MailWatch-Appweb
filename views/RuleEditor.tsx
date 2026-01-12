@@ -26,11 +26,15 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
     name: '',
     subjectFilter: '',
     condition: RuleCondition.CONTAINS,
-    notificationEmail: '',
-    whatsappNumber: '',
+    notificationEmails: [] as string[],
+    whatsappNumbers: [] as string[],
     status: RuleStatus.ACTIVE,
     icon: 'receipt_long'
   });
+
+  // State for new recipient inputs
+  const [newEmail, setNewEmail] = useState('');
+  const [newWhatsapp, setNewWhatsapp] = useState('');
 
   useEffect(() => {
     if (isEditing && rules) {
@@ -40,8 +44,8 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
           name: existing.name,
           subjectFilter: existing.subjectFilter,
           condition: existing.condition,
-          notificationEmail: existing.notificationEmail,
-          whatsappNumber: existing.whatsappNumber || '',
+          notificationEmails: existing.notificationEmails || [],
+          whatsappNumbers: existing.whatsappNumbers || [],
           status: existing.status,
           icon: existing.icon || 'receipt_long'
         });
@@ -177,17 +181,72 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
                 Ações e Status
               </h2>
               <div className="grid grid-cols-1 gap-6">
-                <label className="flex flex-col w-full">
-                  <p className="text-white text-sm font-medium mb-2">E-mail de Notificação</p>
-                  <InputWithIcon
-                    icon="mail"
-                    required
-                    type="email"
-                    value={formData.notificationEmail}
-                    onChange={e => setFormData({ ...formData, notificationEmail: e.target.value })}
-                    placeholder="alerta@empresa.com"
-                  />
-                </label>
+                <div className="flex flex-col w-full">
+                  <p className="text-white text-sm font-medium mb-2">E-mails de Notificação</p>
+
+                  {/* List of added emails */}
+                  {formData.notificationEmails.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {formData.notificationEmails.map((email, index) => (
+                        <span key={index} className="flex items-center gap-1 px-3 py-1.5 bg-primary/20 text-primary rounded-full text-sm">
+                          <span className="material-symbols-outlined text-[14px]">mail</span>
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => setFormData({
+                              ...formData,
+                              notificationEmails: formData.notificationEmails.filter((_, i) => i !== index)
+                            })}
+                            className="ml-1 hover:text-red-400"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">close</span>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add new email input */}
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <InputWithIcon
+                        icon="mail"
+                        type="email"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        placeholder="alerta@empresa.com"
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && newEmail.trim()) {
+                            e.preventDefault();
+                            if (!formData.notificationEmails.includes(newEmail.trim())) {
+                              setFormData({
+                                ...formData,
+                                notificationEmails: [...formData.notificationEmails, newEmail.trim()]
+                              });
+                              setNewEmail('');
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newEmail.trim() && !formData.notificationEmails.includes(newEmail.trim())) {
+                          setFormData({
+                            ...formData,
+                            notificationEmails: [...formData.notificationEmails, newEmail.trim()]
+                          });
+                          setNewEmail('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-colors"
+                    >
+                      <span className="material-symbols-outlined">add</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-text-dim mt-1">Adicione um ou mais e-mails para receber alertas (Enter ou clique em +)</p>
+                </div>
 
                 {/* WhatsApp Logic */}
                 <div className="flex flex-col gap-4 p-4 rounded-xl border border-border-dark bg-background-dark/30">
@@ -223,23 +282,79 @@ const RuleEditor: React.FC<RuleEditorProps> = ({ rules, onSave, onDelete }) => {
                     )}
                   </div>
 
-                  <label className="flex flex-col w-full">
-                    <p className="text-white text-sm font-medium mb-2">Número de Destino (Para quem enviar?)</p>
-                    <InputWithIcon
-                      icon="person"
-                      type="tel"
-                      value={formData.whatsappNumber || ''}
-                      onChange={e => setFormData({ ...formData, whatsappNumber: e.target.value })}
-                      placeholder="5521999999999"
-                      hint="Digite o número que RECEBERÁ a notificação (com DDD)."
-                      disabled={!connectedInstance}
-                    />
+                  <div className="flex flex-col w-full">
+                    <p className="text-white text-sm font-medium mb-2">Números de Destino (Para quem enviar?)</p>
+
+                    {/* List of added WhatsApp numbers */}
+                    {formData.whatsappNumbers.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {formData.whatsappNumbers.map((number, index) => (
+                          <span key={index} className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-full text-sm">
+                            <span className="material-symbols-outlined text-[14px]">call</span>
+                            {number}
+                            <button
+                              type="button"
+                              onClick={() => setFormData({
+                                ...formData,
+                                whatsappNumbers: formData.whatsappNumbers.filter((_, i) => i !== index)
+                              })}
+                              className="ml-1 hover:text-red-400"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">close</span>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new WhatsApp number input */}
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <InputWithIcon
+                          icon="person"
+                          type="tel"
+                          value={newWhatsapp}
+                          onChange={e => setNewWhatsapp(e.target.value)}
+                          placeholder="5521999999999"
+                          disabled={!connectedInstance}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && newWhatsapp.trim()) {
+                              e.preventDefault();
+                              if (!formData.whatsappNumbers.includes(newWhatsapp.trim())) {
+                                setFormData({
+                                  ...formData,
+                                  whatsappNumbers: [...formData.whatsappNumbers, newWhatsapp.trim()]
+                                });
+                                setNewWhatsapp('');
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newWhatsapp.trim() && !formData.whatsappNumbers.includes(newWhatsapp.trim())) {
+                            setFormData({
+                              ...formData,
+                              whatsappNumbers: [...formData.whatsappNumbers, newWhatsapp.trim()]
+                            });
+                            setNewWhatsapp('');
+                          }
+                        }}
+                        disabled={!connectedInstance}
+                        className="px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined">add</span>
+                      </button>
+                    </div>
+                    <p className="text-xs text-text-dim mt-1">Adicione um ou mais números para receber alertas (com DDD, Enter ou clique em +)</p>
                     {!connectedInstance && (
                       <p className="text-xs text-yellow-500 mt-1">
                         ⚠️ Conecte um WhatsApp para habilitar este campo.
                       </p>
                     )}
-                  </label>
+                  </div>
                 </div>
 
                 <div className="flex flex-col pt-2">

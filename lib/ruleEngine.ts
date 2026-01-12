@@ -83,16 +83,21 @@ export const ruleEngine = {
             const actions: string[] = [];
 
             // 1. Check if ANY action for this rule/email has been processed
-            const { data: existing } = await supabase
+            const { data: existing, error: checkError } = await supabase
                 .from('processed_emails')
                 .select('id')
                 .eq('message_id', email.id)
                 .eq('rule_id', rule.id!)
                 .limit(1)
-                .single();
+                .maybeSingle();
+
+            if (checkError) {
+                console.error('Error checking processed_emails:', checkError);
+            }
 
             if (existing) {
-                // Already processed
+                // Already processed - skip to avoid duplicate notifications
+                console.log(`Skipping already processed: ${email.id} for rule ${rule.name}`);
                 return true;
             }
 
@@ -105,6 +110,20 @@ export const ruleEngine = {
             const currentUserId = userData.user?.id;
 
             if (!currentUserId) throw new Error('User not authenticated');
+
+            // 2. IMMEDIATELY mark as processed to prevent race conditions (before sending any notifications)
+            const { error: insertError } = await supabase.from('processed_emails').insert({
+                user_id: currentUserId,
+                message_id: email.id,
+                rule_id: rule.id,
+                action_type: 'rule_execution'
+            });
+
+            if (insertError) {
+                // If insert fails due to unique constraint, another process is handling this
+                console.log(`Already being processed by another instance: ${email.id}`);
+                return true;
+            }
 
             // Mark as read if configured
             if (rule.actions?.markAsRead) {
@@ -124,38 +143,47 @@ export const ruleEngine = {
                 actions.push(`Label aplicada: ${rule.actions.applyLabel}`);
             }
 
-            // Send Email Notification if configured
-            if (rule.notificationEmail) {
-                try {
-                    const result = await gmailService.sendEmail({
-                        to: rule.notificationEmail,
-                        subject: `Alerta: Regra "${rule.name}" acionada`,
-                        body: `Regra Acionada: ${rule.name}\n\nDe: ${email.from}\nAssunto: ${email.subject}\nPrévia: ${email.snippet}`,
-                        htmlBody: `
-                            <h2>Regra Acionada: ${rule.name}</h2>
-                            <p>Uma nova mensagem correspondeu à sua regra no MailWatch.</p>
-                            <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #00E699; margin: 20px 0;">
-                                <p><strong>De:</strong> ${email.from}</p>
-                                <p><strong>Assunto:</strong> ${email.subject}</p>
-                                <p><strong>Prévia:</strong> ${email.snippet}</p>
-                            </div>
-                        `
-                    });
+            // Send Email Notifications to all recipients (with 5s delay between each)
+            if (rule.notificationEmails && rule.notificationEmails.length > 0) {
+                for (let i = 0; i < rule.notificationEmails.length; i++) {
+                    const recipientEmail = rule.notificationEmails[i];
+                    try {
+                        const result = await gmailService.sendEmail({
+                            to: recipientEmail,
+                            subject: `Alerta: Regra "${rule.name}" acionada`,
+                            body: `Regra Acionada: ${rule.name}\n\nDe: ${email.from}\nAssunto: ${email.subject}\nPrévia: ${email.snippet}`,
+                            htmlBody: `
+                                <h2>Regra Acionada: ${rule.name}</h2>
+                                <p>Uma nova mensagem correspondeu à sua regra no MailWatch.</p>
+                                <div style="background: #f5f5f5; padding: 15px; border-left: 4px solid #00E699; margin: 20px 0;">
+                                    <p><strong>De:</strong> ${email.from}</p>
+                                    <p><strong>Assunto:</strong> ${email.subject}</p>
+                                    <p><strong>Prévia:</strong> ${email.snippet}</p>
+                                </div>
+                            `
+                        });
 
-                    if (result.success) {
-                        emailSent = true;
-                        actions.push(`Email enviado para ${rule.notificationEmail}`);
-                    } else {
-                        emailError = result.error || 'Falha ao enviar email';
+                        if (result.success) {
+                            emailSent = true;
+                            actions.push(`Email enviado para ${recipientEmail}`);
+                        } else {
+                            emailError = result.error || 'Falha ao enviar email';
+                        }
+                    } catch (err: any) {
+                        emailError = err.message || 'Erro ao enviar notificação';
+                        console.error(`Error sending notification email to ${recipientEmail}:`, err);
                     }
-                } catch (err: any) {
-                    emailError = err.message || 'Erro ao enviar notificação';
-                    console.error('Error sending notification email:', err);
+
+                    // Wait 5 seconds before sending to next recipient (except after last one)
+                    if (i < rule.notificationEmails.length - 1) {
+                        console.log(`Waiting 5s before next email...`);
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+                    }
                 }
             }
 
-            // Send WhatsApp notification if configured
-            if (rule.whatsappNumber) {
+            // Send WhatsApp notifications to all recipients (with 5s delay between each)
+            if (rule.whatsappNumbers && rule.whatsappNumbers.length > 0) {
                 try {
                     // Get instance name for user
                     const { data: instanceData } = await supabase
@@ -166,25 +194,44 @@ export const ruleEngine = {
                     if (instanceData?.instance_name) {
                         const wsMessage = `📢 *Alerta MailWatch*\n\n*Regra:* ${rule.name}\n*De:* ${email.from}\n*Assunto:* ${email.subject}\n*Prévia:* ${email.snippet}\n\n_Notificação enviada automaticamente_`;
 
-                        await whatsappService.sendTextMessage(
-                            instanceData.instance_name,
-                            rule.whatsappNumber,
-                            wsMessage
-                        );
-                        whatsAppSent = true;
-                        actions.push(`WhatsApp enviado para ${rule.whatsappNumber}`);
+                        for (let i = 0; i < rule.whatsappNumbers.length; i++) {
+                            const whatsappNumber = rule.whatsappNumbers[i];
+                            try {
+                                await whatsappService.sendTextMessage(
+                                    instanceData.instance_name,
+                                    whatsappNumber,
+                                    wsMessage
+                                );
+                                whatsAppSent = true;
+                                actions.push(`WhatsApp enviado para ${whatsappNumber}`);
+                            } catch (err: any) {
+                                whatsAppError = err.message || 'Erro Evolution API';
+                                console.error(`Error sending WhatsApp to ${whatsappNumber}:`, err);
+                            }
+
+                            // Wait 5 seconds before sending to next recipient (except after last one)
+                            if (i < rule.whatsappNumbers.length - 1) {
+                                console.log(`Waiting 5s before next WhatsApp...`);
+                                await new Promise(resolve => setTimeout(resolve, 5000));
+                            }
+                        }
                     }
                 } catch (err: any) {
                     whatsAppError = err.message || 'Erro Evolution API';
-                    console.error('Error sending WhatsApp notification:', err);
+                    console.error('Error getting WhatsApp instance:', err);
                 }
             }
 
             // Centralized Logging & Recording
+            const allRecipients = [
+                ...(rule.notificationEmails || []),
+                ...(rule.whatsappNumbers || []).map(n => `WA:${n}`)
+            ].join(', ');
+
             await notificationService.addNotification({
                 status: (emailSent || whatsAppSent) ? 'sent' : 'failed',
                 ruleName: rule.name,
-                recipient: [rule.notificationEmail, rule.whatsappNumber ? `WA:${rule.whatsappNumber}` : ''].filter(Boolean).join(', '),
+                recipient: allRecipients,
                 error: emailError || whatsAppError || undefined
             });
 
@@ -194,16 +241,6 @@ export const ruleEngine = {
                 description: `Email: "${email.subject}". Ações: ${actions.join(', ')}`,
                 status: (emailSent || whatsAppSent) ? 'success' : 'error'
             });
-
-            // Mark as processed to prevent duplicates
-            if (emailSent || whatsAppSent) {
-                await supabase.from('processed_emails').insert({
-                    user_id: currentUserId,
-                    message_id: email.id,
-                    rule_id: rule.id,
-                    action_type: 'rule_execution'
-                });
-            }
 
             return true;
         } catch (error) {

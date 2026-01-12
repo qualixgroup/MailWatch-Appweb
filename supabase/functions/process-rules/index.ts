@@ -20,10 +20,10 @@ interface Rule {
     name: string;
     subjectFilter: string;
     senderFilter?: string;
-    keywords?: string[]; // Array of strings or objects depending on DB json structure
+    keywords?: string[];
     condition: RuleCondition;
-    notificationEmail: string;
-    whatsappNumber?: string;
+    notification_emails?: string[];
+    whatsapp_numbers?: string[];
     status: string;
     actions?: {
         markAsRead?: boolean;
@@ -381,8 +381,9 @@ serve(async (req) => {
                                 }
                             }
 
-                            // 2. Email Notification
-                            if (rule.notificationEmail) {
+                            // 2. Email Notifications (multiple recipients with 5s delay)
+                            const notificationEmails = rule.notification_emails || [];
+                            if (notificationEmails.length > 0) {
                                 const emailBody = `
                                     <h2>Regra Acionada: ${rule.name}</h2>
                                     <p>Uma nova mensagem correspondeu à sua regra no MailWatch (Processado em Segundo Plano).</p>
@@ -394,35 +395,44 @@ serve(async (req) => {
                                     </div>
                                 `;
 
-                                const rawMessage = [
-                                    `From: me`,
-                                    `To: ${rule.notificationEmail}`,
-                                    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(`Alerta: Regra "${rule.name}" acionada`)))}?=`,
-                                    'MIME-Version: 1.0',
-                                    'Content-Type: text/html; charset=UTF-8',
-                                    '',
-                                    emailBody
-                                ].join('\r\n');
+                                for (let i = 0; i < notificationEmails.length; i++) {
+                                    const recipientEmail = notificationEmails[i];
+                                    const rawMessage = [
+                                        `From: me`,
+                                        `To: ${recipientEmail}`,
+                                        `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(`Alerta: Regra "${rule.name}" acionada`)))}?=`,
+                                        'MIME-Version: 1.0',
+                                        'Content-Type: text/html; charset=UTF-8',
+                                        '',
+                                        emailBody
+                                    ].join('\r\n');
 
-                                const encodedMessage = btoa(unescape(encodeURIComponent(rawMessage)))
-                                    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                                    const encodedMessage = btoa(unescape(encodeURIComponent(rawMessage)))
+                                        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-                                const sendRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-                                    method: 'POST',
-                                    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ raw: encodedMessage })
-                                });
+                                    const sendRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+                                        method: 'POST',
+                                        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ raw: encodedMessage })
+                                    });
 
-                                if (sendRes.ok) {
-                                    emailSent = true;
-                                    actionsTaken.push(`Email para ${rule.notificationEmail}`);
-                                } else {
-                                    console.error("Failed to send notification email");
+                                    if (sendRes.ok) {
+                                        emailSent = true;
+                                        actionsTaken.push(`Email para ${recipientEmail}`);
+                                    } else {
+                                        console.error(`Failed to send notification email to ${recipientEmail}`);
+                                    }
+
+                                    // Wait 5 seconds before next email (except for last one)
+                                    if (i < notificationEmails.length - 1) {
+                                        await new Promise(resolve => setTimeout(resolve, 5000));
+                                    }
                                 }
                             }
 
-                            // 3. WhatsApp Notification
-                            if (rule.whatsappNumber) {
+                            // 3. WhatsApp Notifications (multiple recipients with 5s delay)
+                            const whatsappNumbers = rule.whatsapp_numbers || [];
+                            if (whatsappNumbers.length > 0) {
                                 const { data: instance } = await supabase
                                     .from("whatsapp_instances")
                                     .select("instance_name")
@@ -432,28 +442,47 @@ serve(async (req) => {
                                 if (instance && evolutionUrl && evolutionKey) {
                                     const wsMessage = `📢 *Alerta MailWatch (Background)*\n\n*Regra:* ${rule.name}\n*De:* ${from}\n*Assunto:* ${subject}\n*Prévia:* ${snippet}\n\n_Notificação enviada automaticamente_`;
 
-                                    await fetch(`${evolutionUrl}/message/sendText/${instance.instance_name}`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                            'apikey': evolutionKey
-                                        },
-                                        body: JSON.stringify({
-                                            number: rule.whatsappNumber.replace(/\D/g, ''),
-                                            text: wsMessage,
-                                            linkPreview: false
-                                        })
-                                    });
-                                    whatsappSent = true;
-                                    actionsTaken.push(`WhatsApp para ${rule.whatsappNumber}`);
+                                    for (let i = 0; i < whatsappNumbers.length; i++) {
+                                        const whatsappNumber = whatsappNumbers[i];
+                                        const response = await fetch(`${evolutionUrl}/message/sendText/${instance.instance_name}`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'apikey': evolutionKey
+                                            },
+                                            body: JSON.stringify({
+                                                number: whatsappNumber.replace(/\D/g, ''),
+                                                text: wsMessage,
+                                                linkPreview: false
+                                            })
+                                        });
+
+                                        if (response.ok) {
+                                            whatsappSent = true;
+                                            actionsTaken.push(`WhatsApp para ${whatsappNumber}`);
+                                            log(`WhatsApp sent to ${whatsappNumber}`);
+                                        } else {
+                                            log(`Failed to send WhatsApp to ${whatsappNumber}: ${response.status}`);
+                                        }
+
+                                        // Wait 5 seconds before next WhatsApp (except for last one)
+                                        if (i < whatsappNumbers.length - 1) {
+                                            await new Promise(resolve => setTimeout(resolve, 5000));
+                                        }
+                                    }
                                 }
                             }
 
                             // 4. Log Result
+                            const allRecipients = [
+                                ...(rule.notification_emails || []),
+                                ...(rule.whatsapp_numbers || []).map((n: string) => `WA:${n}`)
+                            ].join(', ');
+
                             await supabase.from("notification_history").insert({
                                 status: (emailSent || whatsappSent) ? 'sent' : 'failed',
-                                rule_name: rule.name, // Note: DB column might be snake_case
-                                recipient: [rule.notificationEmail, rule.whatsappNumber].filter(Boolean).join(', '),
+                                rule_name: rule.name,
+                                recipient: allRecipients,
                                 error: actionError,
                                 user_id: user.id
                             });

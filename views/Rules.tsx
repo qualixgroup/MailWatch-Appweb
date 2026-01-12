@@ -92,14 +92,25 @@ const Rules: React.FC<RulesProps> = ({ rules, onToggleRule, onDeleteRule }) => {
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center gap-2 text-xs text-text-dim">
+                      <div className="flex flex-wrap items-center gap-1 text-xs text-text-dim">
                         <span className="material-symbols-outlined text-[14px]">mail</span>
-                        {rule.notificationEmail}
+                        {(rule.notificationEmails || []).map((email, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs">
+                            {email}
+                          </span>
+                        ))}
+                        {(!rule.notificationEmails || rule.notificationEmails.length === 0) && (
+                          <span className="text-text-dim">Nenhum</span>
+                        )}
                       </div>
-                      {rule.whatsappNumber && (
-                        <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                      {rule.whatsappNumbers && rule.whatsappNumbers.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-emerald-400 font-medium">
                           <span className="material-symbols-outlined text-[14px]">chat</span>
-                          {rule.whatsappNumber}
+                          {rule.whatsappNumbers.map((number, i) => (
+                            <span key={i} className="px-2 py-0.5 bg-emerald-500/10 rounded-full text-xs">
+                              {number}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>

@@ -19,8 +19,8 @@ export const ruleService = {
             name: rule.name,
             subjectFilter: rule.subject_filter,
             condition: rule.condition as RuleCondition,
-            notificationEmail: rule.notification_email,
-            whatsappNumber: rule.whatsapp_number,
+            notificationEmails: rule.notification_emails || [],
+            whatsappNumbers: rule.whatsapp_numbers || [],
             status: rule.status as RuleStatus,
             icon: rule.icon,
             createdAt: new Date(rule.created_at).toLocaleDateString('pt-BR')
@@ -39,8 +39,8 @@ export const ruleService = {
                     name: rule.name,
                     subject_filter: rule.subjectFilter,
                     condition: rule.condition,
-                    notification_email: rule.notificationEmail,
-                    whatsapp_number: rule.whatsappNumber,
+                    notification_emails: rule.notificationEmails,
+                    whatsapp_numbers: rule.whatsappNumbers,
                     status: rule.status,
                     icon: rule.icon,
                     user_id: user.id
@@ -64,8 +64,8 @@ export const ruleService = {
                 name: rule.name,
                 subject_filter: rule.subjectFilter,
                 condition: rule.condition,
-                notification_email: rule.notificationEmail,
-                whatsapp_number: rule.whatsappNumber,
+                notification_emails: rule.notificationEmails,
+                whatsapp_numbers: rule.whatsappNumbers,
                 status: rule.status,
                 icon: rule.icon
             })

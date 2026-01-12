@@ -20,8 +20,8 @@ export interface Rule {
   senderFilter?: string;
   keywords?: string[];
   condition: RuleCondition;
-  notificationEmail: string;
-  whatsappNumber?: string;
+  notificationEmails: string[];
+  whatsappNumbers: string[];
   status: RuleStatus;
   createdAt: string;
   icon?: string;
