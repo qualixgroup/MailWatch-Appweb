@@ -98,18 +98,18 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-surface-dark border border-border-dark rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden transition-colors">
                 {/* Header */}
-                <div className="p-4 border-b border-border-dark flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-white truncate flex-1 mr-4">
+                <div className="p-4 border-b border-gray-200 dark:border-border-dark flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white truncate flex-1 mr-4">
                         {loading ? 'Carregando...' : email?.subject || '(Sem assunto)'}
                     </h2>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleDelete}
                             disabled={loading || !!actionLoading}
-                            className="p-2 text-text-dim hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
+                            className="p-2 text-gray-500 dark:text-text-dim hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
                             title="Excluir"
                         >
                             {actionLoading === 'delete' ? (
@@ -121,7 +121,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                         <button
                             onClick={handleArchive}
                             disabled={loading || !!actionLoading}
-                            className="p-2 text-text-dim hover:text-white hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
+                            className="p-2 text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all disabled:opacity-50"
                             title="Arquivar"
                         >
                             {actionLoading === 'archive' ? (
@@ -132,7 +132,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                         </button>
                         <button
                             onClick={onClose}
-                            className="p-2 text-text-dim hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                            className="p-2 text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
                             title="Fechar"
                         >
                             <span className="material-symbols-outlined text-[20px]">close</span>
@@ -145,7 +145,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                     {loading ? (
                         <div className="p-8 flex items-center justify-center gap-3">
                             <span className="material-symbols-outlined text-primary animate-spin">progress_activity</span>
-                            <span className="text-text-dim">Carregando email...</span>
+                            <span className="text-gray-500 dark:text-text-dim">Carregando email...</span>
                         </div>
                     ) : error ? (
                         <div className="p-8 text-center">
@@ -161,20 +161,20 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                     ) : email ? (
                         <div>
                             {/* Email Header */}
-                            <div className="p-4 bg-background-dark/50 border-b border-border-dark space-y-3">
+                            <div className="p-4 bg-gray-50 dark:bg-background-dark/50 border-b border-gray-200 dark:border-border-dark space-y-3">
                                 <div className="flex items-start gap-4">
                                     <div className="size-12 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg font-bold flex-shrink-0">
                                         {extractName(email.from).charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-white">{extractName(email.from)}</p>
-                                        <p className="text-sm text-text-dim">{extractEmail(email.from)}</p>
-                                        <p className="text-xs text-text-dim mt-1">
+                                        <p className="font-bold text-gray-900 dark:text-white">{extractName(email.from)}</p>
+                                        <p className="text-sm text-gray-500 dark:text-text-dim">{extractEmail(email.from)}</p>
+                                        <p className="text-xs text-gray-500 dark:text-text-dim mt-1">
                                             Para: {email.to}
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs text-text-dim">{formatDate(email.date)}</p>
+                                        <p className="text-xs text-gray-500 dark:text-text-dim">{formatDate(email.date)}</p>
                                     </div>
                                 </div>
 
@@ -184,11 +184,11 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                                         {email.attachments.map((att, i) => (
                                             <div
                                                 key={i}
-                                                className="flex items-center gap-2 px-3 py-2 bg-surface-dark border border-border-dark rounded-lg text-sm"
+                                                className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg text-sm"
                                             >
-                                                <span className="material-symbols-outlined text-[16px] text-text-dim">attach_file</span>
-                                                <span className="text-white">{att.filename}</span>
-                                                <span className="text-text-dim text-xs">({formatSize(att.size)})</span>
+                                                <span className="material-symbols-outlined text-[16px] text-gray-500 dark:text-text-dim">attach_file</span>
+                                                <span className="text-gray-900 dark:text-white">{att.filename}</span>
+                                                <span className="text-gray-500 dark:text-text-dim text-xs">({formatSize(att.size)})</span>
                                             </div>
                                         ))}
                                     </div>
@@ -199,11 +199,11 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                             <div className="p-6">
                                 {email.htmlBody ? (
                                     <div
-                                        className="prose prose-invert max-w-none email-content"
+                                        className="prose dark:prose-invert max-w-none email-content text-gray-900 dark:text-gray-100"
                                         dangerouslySetInnerHTML={{ __html: email.htmlBody }}
                                     />
                                 ) : (
-                                    <pre className="text-white whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                                    <pre className="text-gray-900 dark:text-white whitespace-pre-wrap font-sans text-sm leading-relaxed">
                                         {email.body}
                                     </pre>
                                 )}
@@ -213,16 +213,16 @@ const EmailViewer: React.FC<EmailViewerProps> = ({ messageId, onClose, onMarkAsR
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-border-dark bg-background-dark/30 flex items-center justify-between">
+                <div className="p-4 border-t border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark/30 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <button
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-text-dim hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
                         >
                             <span className="material-symbols-outlined text-[18px]">reply</span>
                             Responder
                         </button>
                         <button
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-text-dim hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-all"
                         >
                             <span className="material-symbols-outlined text-[18px]">forward</span>
                             Encaminhar

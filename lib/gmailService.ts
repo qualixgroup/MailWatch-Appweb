@@ -645,5 +645,23 @@ export const gmailService = {
       body: `Regra "${options.ruleName}" foi acionada!\n\nDe: ${options.emailFrom}\nAssunto: ${options.emailSubject}\n\nCritérios: ${options.matchedCriteria.join(', ')}`,
       htmlBody
     });
+  },
+
+  /**
+   * Handle OAuth callback from Google
+   */
+  async handleCallback(code: string, state: string | null): Promise<{ success: boolean; error?: string; email?: string }> {
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+
+      return {
+        success: true,
+        email: data.user?.email
+      };
+    } catch (err: any) {
+      console.error('Error handling callback:', err);
+      return { success: false, error: err.message };
+    }
   }
 };

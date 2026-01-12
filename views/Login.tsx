@@ -68,8 +68,8 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-background-dark p-4">
-            <div className="w-full max-w-md bg-surface-dark border border-border-dark rounded-2xl shadow-2xl p-8 relative overflow-hidden">
+        <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-background-dark p-4 transition-colors">
+            <div className="w-full max-w-md bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl shadow-2xl p-8 relative overflow-hidden transition-colors">
                 {/* Decorative background gradients */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
@@ -78,8 +78,8 @@ const Login: React.FC = () => {
                     <div className="flex items-center justify-center size-14 rounded-xl bg-primary/20 text-primary shadow-lg shadow-primary/10 mb-4">
                         <span className="material-symbols-outlined text-3xl font-bold">mark_email_read</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight">MailWatch</h1>
-                    <p className="text-text-dim text-sm">Automação Inteligente de E-mails</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">MailWatch</h1>
+                    <p className="text-gray-500 dark:text-text-dim text-sm">Automação Inteligente de E-mails</p>
                 </div>
 
                 <div className="relative z-10 space-y-6">
@@ -103,9 +103,9 @@ const Login: React.FC = () => {
                     </button>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex-1 h-px bg-border-dark"></div>
-                        <span className="text-text-dim text-xs uppercase">ou</span>
-                        <div className="flex-1 h-px bg-border-dark"></div>
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-border-dark"></div>
+                        <span className="text-gray-400 dark:text-text-dim text-xs uppercase">ou</span>
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-border-dark"></div>
                     </div>
 
                     <form onSubmit={handleAuth} className="space-y-4">
@@ -117,7 +117,7 @@ const Login: React.FC = () => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="seu@email.com"
-                                className="bg-background-dark/80"
+                                className="bg-gray-50 dark:bg-background-dark/80"
                             />
                             <InputWithIcon
                                 icon="lock"
@@ -126,7 +126,7 @@ const Login: React.FC = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Sua senha"
-                                className="bg-background-dark/80"
+                                className="bg-gray-50 dark:bg-background-dark/80"
                             />
                         </div>
 
@@ -154,7 +154,7 @@ const Login: React.FC = () => {
                             {loading ? 'Processando...' : isSignUp ? 'Criar Conta' : 'Entrar com E-mail'}
                         </Button>
 
-                        <div className="pt-4 border-t border-border-dark text-center">
+                        <div className="pt-4 border-t border-gray-200 dark:border-border-dark text-center">
                             <button
                                 type="button"
                                 onClick={() => {

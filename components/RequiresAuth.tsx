@@ -9,7 +9,7 @@ const RequiresAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
     if (loading) {
         return (
-            <div className="h-screen w-full flex items-center justify-center bg-background-dark text-primary">
+            <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-background-dark text-primary transition-colors">
                 <span className="material-symbols-outlined text-4xl animate-spin">progress_activity</span>
             </div>
         );

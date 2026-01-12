@@ -109,30 +109,30 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
       {/* Rules Table Snippet */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-white">Regras Principais</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Regras Principais</h3>
           <Link to="/rules" className="text-primary hover:text-primary-dark text-sm font-medium transition-colors">Ver todas</Link>
         </div>
-        <div className="bg-surface-dark border border-border-dark rounded-xl overflow-hidden shadow-xl">
+        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="bg-surface-lighter/30 border-b border-border-dark text-text-dim">
+                <tr className="bg-gray-50 dark:bg-surface-lighter/30 border-b border-gray-200 dark:border-border-dark text-gray-500 dark:text-text-dim">
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider">Regra</th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 font-semibold uppercase tracking-wider text-right">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-dark">
+              <tbody className="divide-y divide-gray-200 dark:divide-border-dark">
                 {rules.slice(0, 3).map((rule) => (
-                  <tr key={rule.id} className="hover:bg-white/5 transition-colors group">
+                  <tr key={rule.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`size-8 rounded-lg flex items-center justify-center ${rule.status === RuleStatus.ACTIVE ? 'bg-primary/10 text-primary' : 'bg-gray-500/10 text-gray-500'}`}>
                           <span className="material-symbols-outlined text-[18px]">{rule.icon || 'receipt_long'}</span>
                         </div>
                         <div>
-                          <p className="font-bold text-white">{rule.name}</p>
-                          <p className="text-xs text-text-dim">{rule.subjectFilter}</p>
+                          <p className="font-bold text-gray-900 dark:text-white">{rule.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-text-dim">{rule.subjectFilter}</p>
                         </div>
                       </div>
                     </td>
@@ -145,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => onToggleRule(rule.id)}
-                        className="p-1.5 hover:bg-white/10 rounded-md text-text-dim hover:text-white transition-all"
+                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-md text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white transition-all"
                         title={rule.status === RuleStatus.ACTIVE ? "Pausar" : "Retomar"}
                       >
                         <span className="material-symbols-outlined text-[20px]">
@@ -164,23 +164,23 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
       {/* Recent Activity */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-white">Atividade Recente</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Atividade Recente</h3>
           <Link to="/logs" className="text-primary hover:text-primary-dark text-sm font-medium">Ver Histórico</Link>
         </div>
-        <div className="bg-surface-dark border border-border-dark rounded-xl p-6 shadow-xl">
-          <div className="relative pl-4 border-l border-border-dark space-y-8">
+        <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-xl p-6 shadow-xl">
+          <div className="relative pl-4 border-l border-gray-200 dark:border-border-dark space-y-8">
             {logs.slice(0, 3).map((log) => (
               <div key={log.id} className="relative">
-                <div className="absolute -left-[21px] top-1 bg-surface-dark rounded-full p-1 border border-border-dark">
+                <div className="absolute -left-[21px] top-1 bg-white dark:bg-surface-dark rounded-full p-1 border border-gray-200 dark:border-border-dark">
                   <div className={`size-2 rounded-full ${log.status === 'success' ? 'bg-emerald-500' :
                     log.status === 'error' ? 'bg-red-500' : 'bg-blue-500'
                     }`}></div>
                 </div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
-                  <p className="text-sm font-bold text-white">{log.title}</p>
-                  <span className="text-xs text-text-dim font-mono">{log.timestamp}</span>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{log.title}</p>
+                  <span className="text-xs text-gray-500 dark:text-text-dim font-mono">{log.timestamp}</span>
                 </div>
-                <p className="text-sm text-text-dim leading-relaxed">
+                <p className="text-sm text-gray-500 dark:text-text-dim leading-relaxed">
                   {log.description}
                 </p>
               </div>

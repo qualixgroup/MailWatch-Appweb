@@ -208,10 +208,10 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
 
     if (loading) {
         return (
-            <div className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <span className="material-symbols-outlined text-primary animate-spin">progress_activity</span>
-                    <span className="text-text-dim">Carregando emails...</span>
+                    <span className="text-gray-500 dark:text-text-dim">Carregando emails...</span>
                 </div>
             </div>
         );
@@ -219,11 +219,11 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
 
     if (!connection.connected) {
         return (
-            <div className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6">
                 <div className="text-center py-8">
-                    <span className="material-symbols-outlined text-5xl text-text-dim mb-4 block">mail_lock</span>
-                    <h3 className="text-lg font-bold text-white mb-2">Gmail não conectado</h3>
-                    <p className="text-text-dim text-sm mb-4">
+                    <span className="material-symbols-outlined text-5xl text-gray-400 dark:text-text-dim mb-4 block">mail_lock</span>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Gmail não conectado</h3>
+                    <p className="text-gray-500 dark:text-text-dim text-sm mb-4">
                         Faça login com sua conta Google para visualizar seus emails.
                     </p>
                     <a
@@ -240,7 +240,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
 
     if (error) {
         return (
-            <div className="bg-surface-dark border border-border-dark rounded-2xl p-6">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-6">
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center gap-3">
                     <span className="material-symbols-outlined text-red-500">error</span>
                     <span className="text-red-500">{error}</span>
@@ -257,12 +257,12 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
 
     return (
         <>
-            <div className="bg-surface-dark border border-border-dark rounded-2xl overflow-hidden">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl overflow-hidden">
                 {/* Header */}
-                <div className="p-4 border-b border-border-dark flex items-center justify-between">
+                <div className="p-4 border-b border-gray-200 dark:border-border-dark flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <span className="material-symbols-outlined text-primary">inbox</span>
-                        <h3 className="text-lg font-bold text-white">Caixa de Entrada</h3>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Caixa de Entrada</h3>
                         {stats.unread > 0 && (
                             <span className="px-2 py-0.5 bg-primary/20 text-primary text-xs font-bold rounded-full">
                                 {stats.unread} não lidos
@@ -288,7 +288,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                         </button>
                         <button
                             onClick={() => checkConnectionAndLoadEmails()}
-                            className="p-2 text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                            className="p-2 text-gray-500 dark:text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
                             title="Atualizar"
                         >
                             <span className="material-symbols-outlined text-[20px]">refresh</span>
@@ -308,9 +308,9 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                 )}
 
                 {/* Email List */}
-                <div className="divide-y divide-border-dark max-h-[500px] overflow-y-auto">
+                <div className="divide-y divide-gray-200 dark:divide-border-dark max-h-[500px] overflow-y-auto">
                     {emails.length === 0 ? (
-                        <div className="p-8 text-center text-text-dim">
+                        <div className="p-8 text-center text-gray-500 dark:text-text-dim">
                             <span className="material-symbols-outlined text-4xl mb-2 block">inbox</span>
                             Nenhum email encontrado
                         </div>
@@ -319,25 +319,25 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                             <div
                                 key={email.id}
                                 onClick={() => handleEmailClick(email.id)}
-                                className={`p-4 hover:bg-background-dark/50 transition-all cursor-pointer group relative ${email.isUnread ? 'bg-primary/5' : ''}`}
+                                className={`p-4 hover:bg-gray-50 dark:hover:bg-background-dark/50 transition-all cursor-pointer group relative ${email.isUnread ? 'bg-primary/5' : ''}`}
                             >
                                 <div className="flex items-start gap-3">
-                                    <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${email.isUnread ? 'bg-primary' : 'bg-surface-dark border border-border-dark'}`}>
+                                    <div className={`size-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${email.isUnread ? 'bg-primary' : 'bg-gray-200 dark:bg-surface-dark border border-gray-300 dark:border-border-dark text-gray-600 dark:text-white'}`}>
                                         {extractName(email.from).charAt(0).toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0 pr-8">
                                         <div className="flex items-center justify-between gap-2 mb-1">
-                                            <p className={`truncate ${email.isUnread ? 'font-bold text-white' : 'text-text-dim'}`}>
+                                            <p className={`truncate ${email.isUnread ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-text-dim'}`}>
                                                 {extractName(email.from)}
                                             </p>
-                                            <span className="text-xs text-text-dim whitespace-nowrap">
+                                            <span className="text-xs text-gray-500 dark:text-text-dim whitespace-nowrap">
                                                 {formatDate(email.date)}
                                             </span>
                                         </div>
-                                        <p className={`truncate text-sm ${email.isUnread ? 'font-semibold text-white' : 'text-text-dim'}`}>
+                                        <p className={`truncate text-sm ${email.isUnread ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-500 dark:text-text-dim'}`}>
                                             {email.subject || '(Sem assunto)'}
                                         </p>
-                                        <p className="text-xs text-text-dim truncate mt-1">
+                                        <p className="text-xs text-gray-500 dark:text-text-dim truncate mt-1">
                                             {email.snippet}
                                         </p>
                                     </div>
@@ -346,7 +346,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                                     <div className="absolute right-4 top-4" onClick={(e) => e.stopPropagation()}>
                                         <button
                                             onClick={() => setActiveMenuId(activeMenuId === email.id ? null : email.id)}
-                                            className={`p-1 rounded-full text-text-dim hover:text-white hover:bg-white/10 transition-all ${activeMenuId === email.id ? 'opacity-100 bg-white/10 text-white' : 'opacity-0 group-hover:opacity-100'}`}
+                                            className={`p-1 rounded-full text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all ${activeMenuId === email.id ? 'opacity-100 bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white' : 'opacity-0 group-hover:opacity-100'}`}
                                         >
                                             <span className="material-symbols-outlined text-[20px]">more_vert</span>
                                         </button>
@@ -355,7 +355,7 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                                         {activeMenuId === email.id && (
                                             <>
                                                 <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
-                                                <div className="absolute right-0 top-8 w-32 bg-surface-dark border border-border-dark rounded-lg shadow-xl z-20 overflow-hidden animate-fade-in">
+                                                <div className="absolute right-0 top-8 w-32 bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-lg shadow-xl z-20 overflow-hidden animate-fade-in">
                                                     <button
                                                         onClick={() => handleDeleteEmail(email.id)}
                                                         className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
@@ -378,14 +378,14 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                 </div>
 
                 {/* Footer with Pagination */}
-                <div className="p-4 border-t border-border-dark bg-background-dark/30 flex items-center justify-between">
-                    <p className="text-xs text-text-dim">
+                <div className="p-4 border-t border-gray-200 dark:border-border-dark bg-gray-50 dark:bg-background-dark/30 flex items-center justify-between">
+                    <p className="text-xs text-gray-500 dark:text-text-dim">
                         Conectado como {connection.email}
                     </p>
 
                     {/* Pagination Controls */}
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-text-dim">
+                        <span className="text-xs text-gray-500 dark:text-text-dim">
                             {emails.length > 0 ? `${startIndex}-${endIndex}` : '0'} de {stats.total.toLocaleString()}
                         </span>
                         <div className="flex items-center gap-0.5">

@@ -26,7 +26,7 @@ const InputWithIcon: React.FC<InputWithIconProps> = ({
         <div className="flex flex-col w-full">
             <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-text-dim group-focus-within:text-primary transition-colors">{icon}</span>
+                    <span className="material-symbols-outlined text-gray-400 dark:text-text-dim group-focus-within:text-primary transition-colors">{icon}</span>
                 </div>
                 <input
                     type={type}
@@ -34,10 +34,10 @@ const InputWithIcon: React.FC<InputWithIconProps> = ({
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    className={`w-full rounded-lg bg-background-dark/50 border border-border-dark text-white placeholder-text-dim/50 focus:border-primary focus:ring-1 focus:ring-primary pl-10 pr-4 py-3 transition-all outline-none ${className}`}
+                    className={`w-full rounded-lg bg-gray-50 dark:bg-background-dark/50 border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-text-dim/50 focus:border-primary focus:ring-1 focus:ring-primary pl-10 pr-4 py-3 transition-all outline-none ${className}`}
                 />
             </div>
-            {hint && <p className="text-xs text-text-dim mt-1 ml-1">{hint}</p>}
+            {hint && <p className="text-xs text-gray-500 dark:text-text-dim mt-1 ml-1">{hint}</p>}
         </div>
     );
 };

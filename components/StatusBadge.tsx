@@ -12,37 +12,37 @@ interface StatusBadgeProps {
 
 const statusConfig = {
     active: {
-        bg: 'bg-emerald-500/10',
-        text: 'text-emerald-500',
-        border: 'border-emerald-500/20',
+        bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+        text: 'text-emerald-700 dark:text-emerald-500',
+        border: 'border-emerald-200 dark:border-emerald-500/20',
         dot: 'bg-emerald-500',
         pulse: true
     },
     paused: {
-        bg: 'bg-yellow-500/10',
-        text: 'text-yellow-500',
-        border: 'border-yellow-500/20',
+        bg: 'bg-yellow-50 dark:bg-yellow-500/10',
+        text: 'text-yellow-700 dark:text-yellow-500',
+        border: 'border-yellow-200 dark:border-yellow-500/20',
         dot: 'bg-yellow-500',
         pulse: false
     },
     success: {
-        bg: 'bg-emerald-500/10',
-        text: 'text-emerald-500',
-        border: 'border-emerald-500/20',
+        bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+        text: 'text-emerald-700 dark:text-emerald-500',
+        border: 'border-emerald-200 dark:border-emerald-500/20',
         dot: 'bg-emerald-500',
         pulse: false
     },
     error: {
-        bg: 'bg-red-500/10',
-        text: 'text-red-500',
-        border: 'border-red-500/20',
+        bg: 'bg-red-50 dark:bg-red-500/10',
+        text: 'text-red-700 dark:text-red-500',
+        border: 'border-red-200 dark:border-red-500/20',
         dot: 'bg-red-500',
         pulse: false
     },
     info: {
-        bg: 'bg-blue-500/10',
-        text: 'text-blue-500',
-        border: 'border-blue-500/20',
+        bg: 'bg-blue-50 dark:bg-blue-500/10',
+        text: 'text-blue-700 dark:text-blue-500',
+        border: 'border-blue-200 dark:border-blue-500/20',
         dot: 'bg-blue-500',
         pulse: false
     }

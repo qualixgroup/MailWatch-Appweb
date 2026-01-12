@@ -32,16 +32,10 @@ const ToastInitializer: React.FC = () => {
 
 // Component to handle theme application
 const ThemeInitializer: React.FC = () => {
-  const { settings } = useSettings();
-
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (settings.theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [settings.theme]);
+    // Forces Dark Mode globally
+    document.documentElement.classList.add('dark');
+  }, []);
 
   return null;
 };

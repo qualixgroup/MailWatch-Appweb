@@ -53,13 +53,13 @@ const AuthCallback: React.FC = () => {
     }, [searchParams, navigate]);
 
     return (
-        <div className="min-h-screen bg-background-dark flex items-center justify-center">
-            <div className="bg-surface-dark border border-border-dark rounded-2xl p-8 max-w-md w-full mx-4 text-center">
+        <div className="min-h-screen bg-gray-50 dark:bg-background-dark flex items-center justify-center transition-colors">
+            <div className="bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark rounded-2xl p-8 max-w-md w-full mx-4 text-center shadow-xl transition-colors">
                 {status === 'processing' && (
                     <>
                         <div className="animate-spin size-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <h2 className="text-xl font-bold text-white mb-2">Processando...</h2>
-                        <p className="text-text-dim">{message}</p>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Processando...</h2>
+                        <p className="text-gray-500 dark:text-text-dim">{message}</p>
                     </>
                 )}
 
@@ -68,12 +68,12 @@ const AuthCallback: React.FC = () => {
                         <div className="size-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="material-symbols-outlined text-4xl text-emerald-500">check_circle</span>
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2">Sucesso!</h2>
-                        <p className="text-text-dim">{message}</p>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Sucesso!</h2>
+                        <p className="text-gray-500 dark:text-text-dim">{message}</p>
                         {email && (
                             <p className="text-primary mt-2 font-medium">{email}</p>
                         )}
-                        <p className="text-text-dim text-sm mt-4">Redirecionando para configurações...</p>
+                        <p className="text-gray-500 dark:text-text-dim text-sm mt-4">Redirecionando para configurações...</p>
                     </>
                 )}
 
@@ -82,9 +82,9 @@ const AuthCallback: React.FC = () => {
                         <div className="size-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <span className="material-symbols-outlined text-4xl text-red-500">error</span>
                         </div>
-                        <h2 className="text-xl font-bold text-white mb-2">Erro</h2>
-                        <p className="text-text-dim">{message}</p>
-                        <p className="text-text-dim text-sm mt-4">Redirecionando para configurações...</p>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Erro</h2>
+                        <p className="text-gray-500 dark:text-text-dim">{message}</p>
+                        <p className="text-gray-500 dark:text-text-dim text-sm mt-4">Redirecionando para configurações...</p>
                     </>
                 )}
             </div>

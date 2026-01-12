@@ -65,10 +65,10 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onRemove: (id: string) => void
 
     const getColors = (type: Toast['type']) => {
         switch (type) {
-            case 'success': return 'bg-green-500/20 border-green-500/30 text-green-400';
-            case 'error': return 'bg-red-500/20 border-red-500/30 text-red-400';
-            case 'warning': return 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400';
-            case 'info': return 'bg-blue-500/20 border-blue-500/30 text-blue-400';
+            case 'success': return 'bg-green-50 border-green-200 text-green-700 dark:bg-green-500/20 dark:border-green-500/30 dark:text-green-400';
+            case 'error': return 'bg-red-50 border-red-200 text-red-700 dark:bg-red-500/20 dark:border-red-500/30 dark:text-red-400';
+            case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-700 dark:bg-yellow-500/20 dark:border-yellow-500/30 dark:text-yellow-400';
+            case 'info': return 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-400';
         }
     };
 
@@ -77,18 +77,18 @@ const ToastContainer: React.FC<{ toasts: Toast[]; onRemove: (id: string) => void
             {toasts.map(toast => (
                 <div
                     key={toast.id}
-                    className={`flex items-start gap-3 p-4 rounded-xl border backdrop-blur-sm shadow-lg animate-slide-in ${getColors(toast.type)}`}
+                    className={`flex items-start gap-3 p-4 rounded-xl border backdrop-blur-sm shadow-lg animate-slide-in bg-white/90 dark:bg-surface-dark/90 ${getColors(toast.type)}`}
                 >
                     <span className="material-symbols-outlined text-[20px] mt-0.5">{getIcon(toast.type)}</span>
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-white text-sm">{toast.title}</p>
+                        <p className="font-bold text-gray-900 dark:text-white text-sm">{toast.title}</p>
                         {toast.message && (
-                            <p className="text-xs opacity-80 mt-0.5">{toast.message}</p>
+                            <p className="text-xs opacity-80 mt-0.5 text-gray-700 dark:text-text-dim">{toast.message}</p>
                         )}
                     </div>
                     <button
                         onClick={() => onRemove(toast.id)}
-                        className="text-white/50 hover:text-white transition-colors"
+                        className="text-gray-500 hover:text-gray-900 dark:text-white/50 dark:hover:text-white transition-colors"
                     >
                         <span className="material-symbols-outlined text-[18px]">close</span>
                     </button>

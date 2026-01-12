@@ -129,7 +129,7 @@ const Settings: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-text-dim">{t('loading')}</div>;
+    return <div className="p-8 text-center text-gray-500 dark:text-text-dim">{t('loading')}</div>;
   }
 
   return (
@@ -148,7 +148,7 @@ const Settings: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all whitespace-nowrap ${activeTab === tab
                   ? 'bg-primary text-background-dark font-bold'
-                  : 'text-text-dim hover:bg-white/5 hover:text-white'
+                  : 'text-gray-600 dark:text-text-dim hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
                   }`}
               >
                 <span className="material-symbols-outlined text-[18px]">
@@ -268,26 +268,7 @@ const Settings: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{t('appearance')}</p>
-                      <p className="text-xs text-gray-500 dark:text-text-dim">{t('appearance_desc')}</p>
-                    </div>
-                    <div className="flex bg-gray-200 dark:bg-surface-lighter rounded-lg p-1">
-                      <button
-                        onClick={() => updateSettings({ theme: 'light' })}
-                        className={`p-2 rounded-md transition-all flex items-center justify-center ${settings.theme === 'light' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">light_mode</span>
-                      </button>
-                      <button
-                        onClick={() => updateSettings({ theme: 'dark' })}
-                        className={`p-2 rounded-md transition-all flex items-center justify-center ${settings.theme === 'dark' ? 'bg-background-dark text-primary shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">dark_mode</span>
-                      </button>
-                    </div>
-                  </div>
+
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-background-dark/50 rounded-lg border border-gray-200 dark:border-border-dark/50 transition-colors">
                     <div>
@@ -430,7 +411,7 @@ const Settings: React.FC = () => {
           )}
 
           {activeTab === 'Avançado' && (
-            <div className="flex flex-col items-center justify-center h-64 text-text-dim animate-fade-in">
+            <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-text-dim animate-fade-in">
               <span className="material-symbols-outlined text-4xl mb-4 opacity-50">construction</span>
               <p>Configurações avançadas em breve.</p>
             </div>

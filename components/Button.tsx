@@ -14,9 +14,9 @@ interface ButtonProps {
 
 const variantClasses = {
     primary: 'bg-primary hover:brightness-110 text-background-dark shadow-lg shadow-primary/20',
-    secondary: 'bg-surface-dark border border-border-dark text-white hover:bg-white/5',
-    danger: 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20',
-    ghost: 'text-text-dim hover:text-white hover:bg-white/5'
+    secondary: 'bg-white dark:bg-surface-dark border border-gray-200 dark:border-border-dark text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-white/5',
+    danger: 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20',
+    ghost: 'text-gray-500 dark:text-text-dim hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5'
 };
 
 const Button: React.FC<ButtonProps> = ({
