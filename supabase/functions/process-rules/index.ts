@@ -99,10 +99,8 @@ serve(async (req) => {
         if (usersError) throw usersError;
 
         const results = [];
-
         const debugLogs: string[] = [];
 
-        // 2. Process each user
         // 2. Process each user
         for (const listUser of users) {
             // Fetch full user details to get identities
@@ -119,9 +117,7 @@ serve(async (req) => {
             };
 
             try {
-
                 // Retrieve Refresh Token
-                // Strategy 1: Check user_gmail_tokens table (Preferred)
                 let refreshToken: string | undefined;
 
                 const { data: tokenRecord } = await supabase
@@ -134,7 +130,6 @@ serve(async (req) => {
                     refreshToken = tokenRecord.refresh_token;
                     log(`Found refresh token in user_gmail_tokens table`);
                 } else {
-                    // Strategy 2: Fallback to identities
                     const googleIdentity = user.identities?.find((id) => id.provider === "google");
                     if (googleIdentity?.identity_data?.provider_refresh_token) {
                         refreshToken = googleIdentity.identity_data.provider_refresh_token;
@@ -143,7 +138,7 @@ serve(async (req) => {
                 }
 
                 if (!refreshToken) {
-                    log(`No refresh token found (checked DB table and identity_data).`);
+                    log(`No refresh token found.`);
                     continue;
                 }
 
@@ -200,7 +195,6 @@ serve(async (req) => {
 
                 // 6. Process Emails against Rules
                 for (const metaMsg of messages) {
-                    // Fetch full message details to get headers and snippet
                     const msgRes = await fetch(
                         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${metaMsg.id}?format=full`,
                         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -209,7 +203,6 @@ serve(async (req) => {
                     if (!msgRes.ok) continue;
                     const email = await msgRes.json();
 
-                    // Extract headers
                     const headers = email.payload?.headers || [];
                     const getHeader = (name: string) => headers.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || "";
 
@@ -217,171 +210,75 @@ serve(async (req) => {
                     const from = getHeader('from');
                     const snippet = email.snippet || "";
 
-                    // Check each rule
                     for (const rule of rules) {
-                        // Deduplication Check
                         const { data: existing } = await supabase
                             .from("processed_emails")
                             .select("id")
                             .eq("message_id", email.id)
                             .eq("rule_id", rule.id)
                             .limit(1)
-                            .single();
+                            .maybeSingle();
 
                         if (existing) continue;
 
-                        // Rule Matching Logic
-                        const matches: string[] = [];
-
-                        // Subject Filter
-                        if (rule.subjectFilter) {
-                            if (checkMatch(subject, rule.subjectFilter, rule.condition)) {
-                                matches.push(`Assunto (${rule.condition}): ${rule.subjectFilter}`);
-                            }
-                        } else if (rule.condition === RuleCondition.ALWAYS) {
-                            matches.push("Sempre");
-                        }
-
-                        // Sender Filter
-                        if (rule.senderFilter) {
-                            if (from.toLowerCase().includes(rule.senderFilter.toLowerCase())) {
-                                matches.push(`Remetente: ${rule.senderFilter}`);
-                            }
-                        }
-
-                        // Keywords Filter
-                        if (rule.keywords && Array.isArray(rule.keywords) && rule.keywords.length > 0) {
-                            const matchedKws = rule.keywords.filter((kw: string) =>
-                                subject.toLowerCase().includes(kw.toLowerCase()) ||
-                                snippet.toLowerCase().includes(kw.toLowerCase())
-                            );
-                            if (matchedKws.length > 0) {
-                                matches.push(`Palavras-chave: ${matchedKws.join(', ')}`);
-                            }
-                        }
-
-                        // Determine if rule matches
-                        // Logic: If specific filters exist, they must be met.
-                        // If subject/sender/keywords are all empty but condition is ALWAYS, it matches.
-                        // If rule defines subjectFilter, it must match.
-                        // If rule defines senderFilter, it must match.
-                        // (This implies AND logic between defined filters, similar to typical email rules)
-
-                        let isMatch = false;
-
-                        // Simplified matching strategy:
-                        // 1. If 'subjectFilter' is present, it MUST match.
-                        // 2. If 'senderFilter' is present, it MUST match.
-                        // 3. If 'keywords' are present, AT LEAST ONE must match.
-                        // 4. If condition is ALWAYS, base match is true (but other filters still apply if present?)
-                        //    Usually ALWAYS means "Apply to all incoming emails".
-
+                        const matchedCriteria: string[] = [];
                         const hasSubjectReq = !!rule.subjectFilter;
                         const hasSenderReq = !!rule.senderFilter;
                         const hasKeywordsReq = rule.keywords && rule.keywords.length > 0;
 
-                        const subjectMatches = hasSubjectReq ? checkMatch(subject, rule.subjectFilter, rule.condition) : true;
-                        const senderMatches = hasSenderReq ? from.toLowerCase().includes(rule.senderFilter.toLowerCase()) : true;
-
-                        let keywordsMatches = true;
+                        if (hasSubjectReq && checkMatch(subject, rule.subjectFilter, rule.condition)) {
+                            matchedCriteria.push(`Filtro "${rule.condition}": "${rule.subjectFilter}"`);
+                        }
+                        if (hasSenderReq && from.toLowerCase().includes(rule.senderFilter.toLowerCase())) {
+                            matchedCriteria.push(`Remetente contém "${rule.senderFilter}"`);
+                        }
                         if (hasKeywordsReq) {
-                            keywordsMatches = rule.keywords.some((kw: string) =>
+                            const kws = rule.keywords.filter((kw: string) =>
                                 subject.toLowerCase().includes(kw.toLowerCase()) ||
                                 snippet.toLowerCase().includes(kw.toLowerCase())
                             );
+                            if (kws.length > 0) matchedCriteria.push(`Palavras-chave: ${kws.join(', ')}`);
                         }
 
-                        // If it's an "ALWAYS" rule with no other filters, it matches everything
                         if (rule.condition === RuleCondition.ALWAYS && !hasSubjectReq && !hasSenderReq && !hasKeywordsReq) {
-                            isMatch = true;
-                        } else {
-                            // Otherwise, all *defined* criteria must match
-                            // (If a user sets Subject AND Sender, usually they want BOTH)
-                            // Note: This logic should align with the frontend ruleEngine.
-                            // Examining ruleEngine.ts:
-                            // It pushes to 'criteria' if matches.
-                            // Then `const matches = criteria.length > 0;` which implies OR or partial match logic? 
-                            // Re-reading ruleEngine.ts:
-                            // It does unrelated checks. 
-                            // if (subjectFilter) { check... if match push criteria }
-                            // if (senderFilter) { check... if match push criteria }
-                            // if (keywords) { check... if match push criteria }
-                            // returns matches = criteria.length > 0.
-                            // This means OR logic implicitly for the top level blocks? 
-                            // NO, wait. If I set Subject "A" and Sender "B".
-                            // If Subject matches, criteria has 1 item.
-                            // If Sender doesn't match, criteria has 1 item.
-                            // matches is true.
-                            // So it is OR logic between the distinct blocks in the original code?
-                            // "Rule matches if any criteria was met" -> Yes, it seems so.
-
-                            // Let's replicate this "Any Criteria Met" logic for parity.
-
-                            const matchedCriteria: string[] = [];
-
-                            if (hasSubjectReq && checkMatch(subject, rule.subjectFilter, rule.condition)) {
-                                matchedCriteria.push(`Filtro "${rule.condition}": "${rule.subjectFilter}"`);
-                            }
-                            if (hasSenderReq && from.toLowerCase().includes(rule.senderFilter.toLowerCase())) {
-                                matchedCriteria.push(`Remetente contém "${rule.senderFilter}"`);
-                            }
-                            if (hasKeywordsReq) {
-                                const kws = rule.keywords.filter((kw: string) =>
-                                    subject.toLowerCase().includes(kw.toLowerCase()) ||
-                                    snippet.toLowerCase().includes(kw.toLowerCase())
-                                );
-                                if (kws.length > 0) matchedCriteria.push(`Palavras-chave: ${kws.join(', ')}`);
-                            }
-
-                            if (rule.condition === RuleCondition.ALWAYS) {
-                                matchedCriteria.push("Sempre");
-                            }
-
-                            if (matchedCriteria.length > 0) {
-                                isMatch = true;
-                                matches.push(...matchedCriteria);
-                            }
+                            matchedCriteria.push("Sempre");
                         }
 
-                        if (isMatch) {
-                            // --- EXECUTE ACTIONS ---
+                        if (matchedCriteria.length > 0) {
                             const actionsTaken: string[] = [];
                             let emailSent = false;
                             let whatsappSent = false;
-                            let actionError = null;
 
-                            // 1. Gmail Actions
+                            // EXECUTE ACTIONS in parallel
+                            const actionPromises = [];
+
                             if (rule.actions) {
-                                // Mark as Read
                                 if (rule.actions.markAsRead) {
-                                    await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
+                                    actionPromises.push(fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
                                         method: 'POST',
                                         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ removeLabelIds: ['UNREAD'] })
-                                    });
-                                    actionsTaken.push("Marcado como lido");
+                                    }).then(() => actionsTaken.push("Marcado como lido")));
                                 }
-                                // Archive
                                 if (rule.actions.archive) {
-                                    await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
+                                    actionPromises.push(fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
                                         method: 'POST',
                                         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ removeLabelIds: ['INBOX'] })
-                                    });
-                                    actionsTaken.push("Arquivado");
+                                    }).then(() => actionsTaken.push("Arquivado")));
                                 }
-                                // Apply Label
                                 if (rule.actions.applyLabel) {
-                                    await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
+                                    actionPromises.push(fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${email.id}/modify`, {
                                         method: 'POST',
                                         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ addLabelIds: [rule.actions.applyLabel] })
-                                    });
-                                    actionsTaken.push(`Label: ${rule.actions.applyLabel}`);
+                                    }).then(() => actionsTaken.push(`Label: ${rule.actions.applyLabel}`)));
                                 }
                             }
 
-                            // 2. Email Notifications (multiple recipients with 5s delay)
+                            await Promise.all(actionPromises);
+
+                            // Email Notifications (Parallel but no delay in background to save time)
                             const notificationEmails = rule.notification_emails || [];
                             if (notificationEmails.length > 0) {
                                 const emailBody = `
@@ -391,12 +288,11 @@ serve(async (req) => {
                                         <p><strong>De:</strong> ${from}</p>
                                         <p><strong>Assunto:</strong> ${subject}</p>
                                         <p><strong>Prévia:</strong> ${snippet}</p>
-                                        <p><strong>Critérios:</strong> ${matches.join(', ')}</p>
+                                        <p><strong>Critérios:</strong> ${matchedCriteria.join(', ')}</p>
                                     </div>
                                 `;
 
-                                for (let i = 0; i < notificationEmails.length; i++) {
-                                    const recipientEmail = notificationEmails[i];
+                                const emailPromises = notificationEmails.map(async (recipientEmail) => {
                                     const rawMessage = [
                                         `From: me`,
                                         `To: ${recipientEmail}`,
@@ -419,18 +315,12 @@ serve(async (req) => {
                                     if (sendRes.ok) {
                                         emailSent = true;
                                         actionsTaken.push(`Email para ${recipientEmail}`);
-                                    } else {
-                                        console.error(`Failed to send notification email to ${recipientEmail}`);
                                     }
-
-                                    // Wait 5 seconds before next email (except for last one)
-                                    if (i < notificationEmails.length - 1) {
-                                        await new Promise(resolve => setTimeout(resolve, 5000));
-                                    }
-                                }
+                                });
+                                await Promise.all(emailPromises);
                             }
 
-                            // 3. WhatsApp Notifications (multiple recipients with 5s delay)
+                            // WhatsApp Notifications
                             const whatsappNumbers = rule.whatsapp_numbers || [];
                             if (whatsappNumbers.length > 0) {
                                 const { data: instance } = await supabase
@@ -442,14 +332,10 @@ serve(async (req) => {
                                 if (instance && evolutionUrl && evolutionKey) {
                                     const wsMessage = `📢 *Alerta MailWatch (Background)*\n\n*Regra:* ${rule.name}\n*De:* ${from}\n*Assunto:* ${subject}\n*Prévia:* ${snippet}\n\n_Notificação enviada automaticamente_`;
 
-                                    for (let i = 0; i < whatsappNumbers.length; i++) {
-                                        const whatsappNumber = whatsappNumbers[i];
+                                    const waPromises = whatsappNumbers.map(async (whatsappNumber) => {
                                         const response = await fetch(`${evolutionUrl}/message/sendText/${instance.instance_name}`, {
                                             method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'apikey': evolutionKey
-                                            },
+                                            headers: { 'Content-Type': 'application/json', 'apikey': evolutionKey },
                                             body: JSON.stringify({
                                                 number: whatsappNumber.replace(/\D/g, ''),
                                                 text: wsMessage,
@@ -460,38 +346,24 @@ serve(async (req) => {
                                         if (response.ok) {
                                             whatsappSent = true;
                                             actionsTaken.push(`WhatsApp para ${whatsappNumber}`);
-                                            log(`WhatsApp sent to ${whatsappNumber}`);
-                                        } else {
-                                            log(`Failed to send WhatsApp to ${whatsappNumber}: ${response.status}`);
                                         }
-
-                                        // Wait 5 seconds before next WhatsApp (except for last one)
-                                        if (i < whatsappNumbers.length - 1) {
-                                            await new Promise(resolve => setTimeout(resolve, 5000));
-                                        }
-                                    }
+                                    });
+                                    await Promise.all(waPromises);
                                 }
                             }
 
-                            // 4. Log Result
+                            // Log Result - FIX TABLE NAME FROM notification_history TO notifications
                             const allRecipients = [
                                 ...(rule.notification_emails || []),
                                 ...(rule.whatsapp_numbers || []).map((n: string) => `WA:${n}`)
                             ].join(', ');
 
-                            await supabase.from("notification_history").insert({
+                            await supabase.from("notifications").insert({
                                 status: (emailSent || whatsappSent) ? 'sent' : 'failed',
                                 rule_name: rule.name,
                                 recipient: allRecipients,
-                                error: actionError,
                                 user_id: user.id
                             });
-
-                            // Note: 'notification_history' schema check? 
-                            // Based on types.ts, it has camelCase fields in interface? 
-                            // Usually Supabase uses snake_case in DB and mapping in client.
-                            // I'll assume standard snake_case for DB columns based on 'processed_emails'.
-                            // If this fails, user will see error in logs.
 
                             // Mark as processed
                             await supabase.from("processed_emails").insert({
@@ -506,10 +378,8 @@ serve(async (req) => {
                         }
                     }
                 }
-
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
-                console.error(`Error processing user ${user.id}:`, err);
                 log(`Error: ${msg}`);
             }
         }
@@ -524,4 +394,3 @@ serve(async (req) => {
         });
     }
 });
-

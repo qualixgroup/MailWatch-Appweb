@@ -11,7 +11,7 @@ select
     select
       net.http_post(
           url:='https://aizjveevorxzrfhglfxb.supabase.co/functions/v1/process-rules',
-          headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpemp2ZWV2b3J4enJmaGdsZnhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcxMDA3NDgsImV4cCI6MjA4MjY3Njc0OH0.gEd_-aaz5E-OvHS0tqMly-1HtdBOYz1wOLtaokCL0ek"}'::jsonb,
+          headers:='{"Content-Type": "application/json", "Authorization": "Bearer sb_publishable_E0WrKpuNbXBA3dTJm8DazQ__IlTB4Xq"}'::jsonb,
           body:='{}'::jsonb
       ) as request_id;
     $$
