@@ -40,7 +40,9 @@ export const ruleService = {
                     subject_filter: rule.subjectFilter,
                     condition: rule.condition,
                     notification_emails: rule.notificationEmails,
+                    notification_email: rule.notificationEmails[0] || '',
                     whatsapp_numbers: rule.whatsappNumbers,
+                    whatsapp_number: rule.whatsappNumbers[0] || '',
                     status: rule.status,
                     icon: rule.icon,
                     user_id: user.id
@@ -65,7 +67,9 @@ export const ruleService = {
                 subject_filter: rule.subjectFilter,
                 condition: rule.condition,
                 notification_emails: rule.notificationEmails,
+                notification_email: rule.notificationEmails[0] || '',
                 whatsapp_numbers: rule.whatsappNumbers,
+                whatsapp_number: rule.whatsappNumbers[0] || '',
                 status: rule.status,
                 icon: rule.icon
             })
