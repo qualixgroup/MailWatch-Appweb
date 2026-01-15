@@ -64,7 +64,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }, { onConflict: 'user_id' })
                     .then(({ error }) => {
                         if (error) console.error("Error saving tokens:", error);
-                        else console.log("Tokens saved successfully");
+                        else {
+                            console.log("Tokens saved successfully");
+                            // Trigger Gmail Watch Setup
+                            supabase.functions.invoke('gmail-setup-watch', {
+                                body: { userId: session.user.id }
+                            }).then(({ error: fnError }) => {
+                                if (fnError) console.error("Error setting up watch:", fnError);
+                                else console.log("Gmail Watch set up successfully via AuthContext");
+                            });
+                        }
                     });
             }
         });

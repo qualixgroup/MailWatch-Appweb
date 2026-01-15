@@ -6,7 +6,6 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// --- Interfaces (Ported from types.ts) ---
 enum RuleCondition {
     CONTAINS = 'Contém',
     STARTS_WITH = 'Começa com',
@@ -32,11 +31,6 @@ interface Rule {
     };
 }
 
-// --- Helper Functions ---
-
-/**
- * Checks if a string matches a filter based on the condition
- */
 function checkMatch(text: string, filter: string, condition: string): boolean {
     if (!text) return false;
     const t = text.toLowerCase();
@@ -57,34 +51,18 @@ function checkMatch(text: string, filter: string, condition: string): boolean {
     }
 }
 
-/**
- * Decodes Base64Url to UTF-8
- */
-function decodeBase64(data: string): string {
-    try {
-        const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
-        const binaryString = atob(base64);
-        /* @ts-ignore */
-        const bytes = Uint8Array.from(binaryString, c => c.charCodeAt(0));
-        return new TextDecoder('utf-8').decode(bytes);
-    } catch (e) {
-        return '';
-    }
-}
-
 serve(async (req) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
 
     try {
-        // Initialize Supabase Admin Client
+        const payload = await req.json(); // { mode: 'incremental', userId: '...', historyId: '123' } OR empty for full scan
+
         const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
         const googleClientId = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
         const googleClientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
-
-        // Optional: Evolution API for WhatsApp
         const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
         const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
 
@@ -93,56 +71,53 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-        // 1. List all users (TODO: Pagination for scale)
-        const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers();
-        if (usersError) throw usersError;
-
         const results = [];
         const debugLogs: string[] = [];
 
-        // 2. Process each user
-        for (const listUser of users) {
-            // Fetch full user details to get identities
-            const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(listUser.id);
+        // Determine targets: Specific user (Webhook) or All users (Cron)
+        let targetUsers = [];
+        if (payload.userId) {
+            // Webhook mode
+            targetUsers.push({ id: payload.userId });
+        } else {
+            // Cron mode - List all users
+            const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers();
+            if (usersError) throw usersError;
+            targetUsers = users;
+        }
 
-            if (userError || !user) {
-                console.log(`[User ${listUser.id}] Failed to fetch full details: ${userError?.message}`);
-                continue;
-            }
-
+        for (const listUser of targetUsers) {
+            // Fetch user details mostly to communicate if needed, but we rely on IDs
             const log = (msg: string) => {
-                console.log(`[User ${user.id}] ${msg}`);
-                debugLogs.push(`[User ${user.id}] ${msg}`);
+                console.log(`[User ${listUser.id}] ${msg}`);
+                debugLogs.push(`[User ${listUser.id}] ${msg}`);
             };
 
             try {
-                // Retrieve Refresh Token
-                let refreshToken: string | undefined;
-
+                // 1. Get Refresh Token & History ID
                 const { data: tokenRecord } = await supabase
                     .from('user_gmail_tokens')
-                    .select('refresh_token')
+                    .select('refresh_token, history_id')
                     .eq('user_id', listUser.id)
                     .single();
 
-                if (tokenRecord?.refresh_token) {
-                    refreshToken = tokenRecord.refresh_token;
-                    log(`Found refresh token in user_gmail_tokens table`);
-                } else {
-                    const googleIdentity = user.identities?.find((id) => id.provider === "google");
+                let refreshToken = tokenRecord?.refresh_token;
+
+                // Fallback to identity if needed (mostly for legacy)
+                if (!refreshToken) {
+                    const { data: { user } } = await supabase.auth.admin.getUserById(listUser.id);
+                    const googleIdentity = user?.identities?.find((id) => id.provider === "google");
                     if (googleIdentity?.identity_data?.provider_refresh_token) {
                         refreshToken = googleIdentity.identity_data.provider_refresh_token;
-                        log(`Found refresh token in identity_data`);
                     }
                 }
 
                 if (!refreshToken) {
-                    log(`No refresh token found.`);
+                    log("No refresh token found");
                     continue;
                 }
 
-                // 3. Refresh Google Token
+                // 2. Refresh Access Token
                 const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -155,46 +130,89 @@ serve(async (req) => {
                 });
 
                 if (!tokenResponse.ok) {
-                    const errorText = await tokenResponse.text();
-                    log(`Failed to refresh token. Status: ${tokenResponse.status}, Error: ${errorText}`);
+                    log(`Failed to refresh token: ${tokenResponse.status}`);
                     continue;
                 }
 
                 const tokenData = await tokenResponse.json();
                 const accessToken = tokenData.access_token;
-                log(`Successfully refreshed token`);
 
-                // 4. Fetch Active Rules for User
+                // 3. Fetch Active Rules
                 const { data: rules } = await supabase
                     .from("rules")
                     .select("*")
-                    .eq("user_id", user.id)
+                    .eq("user_id", listUser.id)
                     .eq("status", "Ativo");
 
                 if (!rules || rules.length === 0) {
-                    log(`No active rules found`);
-                    continue;
+                    log("No active rules");
+                    continue; // But we might still want to update historyId if it's a sync run? Not strictly necessary.
                 }
 
-                // 5. Fetch Recent Emails (Last 20 Unread in INBOX)
-                const gmailResponse = await fetch(
-                    "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX&q=is:unread category:primary",
-                    {
+                // 4. Fetch Emails (Incremental vs Full)
+                let messages: any[] = [];
+
+                // If Webhook mode (incremental) and we have a previous historyId
+                if (payload.mode === 'incremental' && payload.historyId && tokenRecord?.history_id) {
+                    log(`Incremental sync from historyId ${tokenRecord.history_id}`);
+
+                    // Gmail history.list
+                    const historyUrl = `https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=${tokenRecord.history_id}&labelId=INBOX&historyTypes=messageAdded`;
+                    const historyRes = await fetch(historyUrl, {
                         headers: { Authorization: `Bearer ${accessToken}` }
-                    }
-                );
+                    });
 
-                if (!gmailResponse.ok) {
-                    log(`Failed to fetch gmail messages: ${gmailResponse.status}`);
-                    continue;
+                    if (historyRes.ok) {
+                        const historyData = await historyRes.json();
+                        // Extract messages added
+                        if (historyData.history && historyData.history.length > 0) {
+                            for (const h of historyData.history) {
+                                if (h.messagesAdded) {
+                                    for (const m of h.messagesAdded) {
+                                        if (m.message) messages.push(m.message); // Only ID and ThreadID here
+                                    }
+                                }
+                            }
+                        } else {
+                            log("No new messages found since last historyId");
+                        }
+                    } else {
+                        // History ID might be too old (404), fall back to list?
+                        // For now, simple logging errors
+                        log(`History fetch failed: ${historyRes.status}`);
+                    }
+
+                } else {
+                    // Full Scan Mode (Default / Fallback)
+                    log("Full inbox scan (standard mode)");
+                    const gmailResponse = await fetch(
+                        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX&q=is:unread category:primary",
+                        {
+                            headers: { Authorization: `Bearer ${accessToken}` }
+                        }
+                    );
+
+                    if (gmailResponse.ok) {
+                        const gmailData = await gmailResponse.json();
+                        messages = gmailData.messages || [];
+                    }
                 }
 
-                const gmailData = await gmailResponse.json();
-                const messages = gmailData.messages || [];
-                log(`Found ${messages.length} messages`);
+                log(`Processing ${messages.length} messages`);
 
-                // 6. Process Emails against Rules
+                // 5. Process Each Message
                 for (const metaMsg of messages) {
+                    // Deduplication Check (early, before fetching full content)
+                    // Optimization: We check DB first.
+                    const { data: alreadyProcessed } = await supabase
+                        .from("processed_emails")
+                        .select("id")
+                        .eq("message_id", metaMsg.id)
+                        .limit(1); // Check against any rule for this message ID? Actually we check per rule usually.
+
+                    // Actually, we check Per-Rule in the inner loop, but we can't optimize much without knowing rules.
+                    // But if ALL rules for a msg are done? Hard to tracking.
+                    // Fetch full content
                     const msgRes = await fetch(
                         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${metaMsg.id}?format=full`,
                         { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -211,6 +229,7 @@ serve(async (req) => {
                     const snippet = email.snippet || "";
 
                     for (const rule of rules) {
+                        // Check duplicates specific to this Rule + Message
                         const { data: existing } = await supabase
                             .from("processed_emails")
                             .select("id")
@@ -226,6 +245,7 @@ serve(async (req) => {
                         const hasSenderReq = !!rule.senderFilter;
                         const hasKeywordsReq = rule.keywords && rule.keywords.length > 0;
 
+                        // Match Logic
                         if (hasSubjectReq && checkMatch(subject, rule.subjectFilter, rule.condition)) {
                             matchedCriteria.push(`Filtro "${rule.condition}": "${rule.subjectFilter}"`);
                         }
@@ -239,17 +259,15 @@ serve(async (req) => {
                             );
                             if (kws.length > 0) matchedCriteria.push(`Palavras-chave: ${kws.join(', ')}`);
                         }
-
                         if (rule.condition === RuleCondition.ALWAYS && !hasSubjectReq && !hasSenderReq && !hasKeywordsReq) {
                             matchedCriteria.push("Sempre");
                         }
 
                         if (matchedCriteria.length > 0) {
+                            // Rule Matched! Execute Actions
                             const actionsTaken: string[] = [];
                             let emailSent = false;
                             let whatsappSent = false;
-
-                            // EXECUTE ACTIONS in parallel
                             const actionPromises = [];
 
                             if (rule.actions) {
@@ -275,10 +293,9 @@ serve(async (req) => {
                                     }).then(() => actionsTaken.push(`Label: ${rule.actions.applyLabel}`)));
                                 }
                             }
-
                             await Promise.all(actionPromises);
 
-                            // Email Notifications (Parallel but no delay in background to save time)
+                            // Email Notifications
                             const notificationEmails = rule.notification_emails || [];
                             if (notificationEmails.length > 0) {
                                 const emailBody = `
@@ -291,7 +308,6 @@ serve(async (req) => {
                                         <p><strong>Critérios:</strong> ${matchedCriteria.join(', ')}</p>
                                     </div>
                                 `;
-
                                 const emailPromises = notificationEmails.map(async (recipientEmail) => {
                                     const rawMessage = [
                                         `From: me`,
@@ -302,7 +318,6 @@ serve(async (req) => {
                                         '',
                                         emailBody
                                     ].join('\r\n');
-
                                     const encodedMessage = btoa(unescape(encodeURIComponent(rawMessage)))
                                         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
@@ -311,7 +326,6 @@ serve(async (req) => {
                                         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ raw: encodedMessage })
                                     });
-
                                     if (sendRes.ok) {
                                         emailSent = true;
                                         actionsTaken.push(`Email para ${recipientEmail}`);
@@ -326,10 +340,11 @@ serve(async (req) => {
                                 const { data: instance } = await supabase
                                     .from("whatsapp_instances")
                                     .select("instance_name")
-                                    .eq("user_id", user.id)
+                                    .eq("user_id", listUser.id)
                                     .single();
 
                                 if (instance && evolutionUrl && evolutionKey) {
+                                    // Use 'from' directly, but sometimes it has <email> which might be messy for WA.
                                     const wsMessage = `📢 *Alerta MailWatch (Background)*\n\n*Regra:* ${rule.name}\n*De:* ${from}\n*Assunto:* ${subject}\n*Prévia:* ${snippet}\n\n_Notificação enviada automaticamente_`;
 
                                     const waPromises = whatsappNumbers.map(async (whatsappNumber) => {
@@ -342,7 +357,6 @@ serve(async (req) => {
                                                 linkPreview: false
                                             })
                                         });
-
                                         if (response.ok) {
                                             whatsappSent = true;
                                             actionsTaken.push(`WhatsApp para ${whatsappNumber}`);
@@ -352,7 +366,7 @@ serve(async (req) => {
                                 }
                             }
 
-                            // Log Result - FIX TABLE NAME FROM notification_history TO notifications
+                            // Log
                             const allRecipients = [
                                 ...(rule.notification_emails || []),
                                 ...(rule.whatsapp_numbers || []).map((n: string) => `WA:${n}`)
@@ -362,35 +376,47 @@ serve(async (req) => {
                                 status: (emailSent || whatsappSent) ? 'sent' : 'failed',
                                 rule_name: rule.name,
                                 recipient: allRecipients,
-                                user_id: user.id
+                                user_id: listUser.id
                             });
 
-                            // Mark as processed
+                            // Insert log for realtime frontend update
+                            await supabase.from("logs").insert({
+                                user_id: listUser.id,
+                                type: 'RuleMatch',
+                                title: `Regra "${rule.name}" aplicada`,
+                                description: `Email de ${from.split('<')[0].trim()} - ${subject}`,
+                                status: (emailSent || whatsappSent) ? 'success' : 'info',
+                                details: actionsTaken.length > 0 ? actionsTaken.join(', ') : null
+                            });
+
                             await supabase.from("processed_emails").insert({
-                                user_id: user.id,
+                                user_id: listUser.id,
                                 message_id: email.id,
                                 rule_id: rule.id,
                                 action_type: 'rule_execution_background'
                             });
 
-                            results.push({ user: user.id, rule: rule.id, email: email.id, actions: actionsTaken });
-                            log(`Rule matched: ${rule.name} - Actions: ${actionsTaken.join(', ')}`);
-                        }
-                    }
-                }
-            } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                log(`Error: ${msg}`);
+                            results.push({ user: listUser.id, rule: rule.id, email: email.id, actions: actionsTaken });
+                            log(`Matched Rule: ${rule.name}`);
+
+                        } // end if matched
+                    } // end rules loop
+                } // end messages loop
+
+            } catch (err: any) {
+                log(`Error processing user: ${err.message}`);
             }
-        }
+        } // end users loop
 
         return new Response(JSON.stringify({ success: true, processed: results, debug: debugLogs }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
+
     } catch (error: any) {
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     }
 });

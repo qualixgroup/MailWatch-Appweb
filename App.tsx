@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
@@ -18,7 +17,9 @@ import Login from './views/Login';
 import { logService } from './lib/logService';
 import { ruleService } from './lib/ruleService';
 import { notificationService } from './lib/notificationService';
-import { ToastProvider, useToast, setGlobalToast } from './components/Toast';
+import { realtimeService } from './lib/realtimeService';
+import { supabase } from './lib/supabase';
+import { ToastProvider, useToast, setGlobalToast, showToast } from './components/Toast';
 import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 
 // Component to initialize global toast
@@ -44,6 +45,7 @@ const App: React.FC = () => {
   const [rules, setRules] = useState<Rule[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [notifications, setNotifications] = useState<NotificationHistory[]>([]);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   const fetchLogs = async () => {
     const data = await logService.fetchLogs();
@@ -64,6 +66,113 @@ const App: React.FC = () => {
     fetchLogs();
     fetchRules();
     fetchNotifications();
+  }, []);
+
+  // Supabase Realtime subscriptions for live updates
+  useEffect(() => {
+    let unsubscribeConnection: (() => void) | null = null;
+    let isSubscribed = false;
+
+    const initializeRealtime = async () => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log('[App] No user authenticated, skipping realtime setup');
+        return;
+      }
+
+      console.log('[App] Setting up realtime for user:', user.id);
+
+      // Subscribe to connection status changes
+      unsubscribeConnection = realtimeService.onConnectionChange((connected) => {
+        setIsRealtimeConnected(connected);
+        if (connected) {
+          console.log('🟢 [App] Realtime connected for user:', user.id);
+        }
+      });
+
+      // Subscribe to all realtime events with user ID filter
+      await realtimeService.subscribeAll(user.id, {
+        onLogsInsert: (payload) => {
+          // Add new log to the top of the list
+          const newLog = payload.new;
+          console.log('📋 [App] New log received:', newLog);
+          const formattedLog: ActivityLog = {
+            ...newLog,
+            timestamp: new Date(newLog.created_at).toLocaleString('pt-BR', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          };
+          setLogs(prev => [formattedLog, ...prev].slice(0, 50));
+
+          // Show toast for important events
+          if (newLog.status === 'success' && newLog.type === 'RuleMatch') {
+            showToast({
+              type: 'success',
+              title: 'Regra Aplicada',
+              message: newLog.title
+            });
+          }
+        },
+        onNotificationsInsert: (payload) => {
+          // Add new notification to the top of the list
+          const newNotif = payload.new;
+          console.log('🔔 [App] New notification received:', newNotif);
+          const formattedNotif: NotificationHistory = {
+            id: newNotif.id,
+            ruleName: newNotif.rule_name,
+            recipient: newNotif.recipient,
+            status: newNotif.status as 'sent' | 'failed',
+            error: newNotif.error,
+            timestamp: new Date(newNotif.created_at).toLocaleString('pt-BR', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          };
+          setNotifications(prev => [formattedNotif, ...prev].slice(0, 50));
+
+          // Show toast for new notifications
+          showToast({
+            type: newNotif.status === 'sent' ? 'success' : 'error',
+            title: newNotif.status === 'sent' ? 'Alerta Enviado' : 'Falha no Alerta',
+            message: `${newNotif.rule_name} → ${newNotif.recipient}`
+          });
+        },
+        onProcessedEmailsInsert: (payload) => {
+          console.log('📧 [App] Email processed in realtime:', payload.new);
+          // Refresh dashboard stats
+          fetchLogs();
+        }
+      });
+
+      isSubscribed = true;
+    };
+
+    initializeRealtime();
+
+    // Also listen for auth state changes to reinitialize realtime
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('[App] User signed in, reinitializing realtime');
+        initializeRealtime();
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[App] User signed out, cleaning up realtime');
+        realtimeService.cleanup();
+        setIsRealtimeConnected(false);
+      }
+    });
+
+    return () => {
+      unsubscribeConnection?.();
+      authSubscription.unsubscribe();
+      realtimeService.cleanup();
+    };
   }, []);
 
   const addRule = async (rule: Omit<Rule, 'id' | 'createdAt'>) => {

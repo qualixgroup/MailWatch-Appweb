@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { gmailService, GmailMessage, GmailConnection } from '../lib/gmailService';
 import { ruleEngine } from '../lib/ruleEngine';
 import EmailViewer from './EmailViewer';
+import { realtimeService } from '../lib/realtimeService';
+import { supabase } from '../lib/supabase';
 
 interface EmailListProps {
     maxEmails?: number;
@@ -40,6 +42,73 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
 
     useEffect(() => {
         checkConnectionAndLoadEmails();
+    }, []);
+
+    // Subscribe to broadcast channel for new email notifications from webhook
+    useEffect(() => {
+        let cleanup: (() => void) | null = null;
+
+        const setup = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Listen for new-email broadcast from gmail-webhook
+            const channel = supabase
+                .channel(`new-email-${user.id}`)
+                .on('broadcast', { event: 'new-email' }, (payload) => {
+                    console.log('📨 [EmailList] New email notification received!', payload);
+                    checkConnectionAndLoadEmails();
+                })
+                .subscribe();
+
+            cleanup = () => {
+                supabase.removeChannel(channel);
+            };
+        };
+
+        setup();
+
+        return () => {
+            cleanup?.();
+        };
+    }, []);
+
+    // Subscribe to realtime updates for new processed emails
+    useEffect(() => {
+        let cleanup: (() => void) | null = null;
+
+        const setup = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Subscribe to processed_emails inserts to auto-refresh inbox
+            const channel = supabase
+                .channel('emaillist-processed')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'processed_emails',
+                        filter: `user_id=eq.${user.id}`
+                    },
+                    (payload) => {
+                        console.log('📧 [EmailList] New processed email, refreshing inbox', payload);
+                        checkConnectionAndLoadEmails();
+                    }
+                )
+                .subscribe();
+
+            cleanup = () => {
+                supabase.removeChannel(channel);
+            };
+        };
+
+        setup();
+
+        return () => {
+            cleanup?.();
+        };
     }, []);
 
     const checkConnectionAndLoadEmails = async (token?: string) => {
@@ -154,14 +223,19 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
         try {
             const date = new Date(dateStr);
             const now = new Date();
-            const diff = now.getTime() - date.getTime();
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const days = Math.floor(hours / 24);
+            const isToday = date.toDateString() === now.toDateString();
+            const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
 
-            if (hours < 1) return 'Agora';
-            if (hours < 24) return `${hours}h atrás`;
-            if (days < 7) return `${days}d atrás`;
-            return date.toLocaleDateString('pt-BR');
+            const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            if (isToday) {
+                return timeStr; // Shows "14:30"
+            }
+            if (isYesterday) {
+                return `Ontem, ${timeStr}`;
+            }
+            // For older emails, show date and time
+            return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + `, ${timeStr}`;
         } catch {
             return dateStr;
         }
@@ -268,31 +342,6 @@ const EmailList: React.FC<EmailListProps> = ({ maxEmails = 10 }) => {
                                 {stats.unread} não lidos
                             </span>
                         )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleApplyRules}
-                            disabled={processingRules}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all ${processingRules
-                                ? 'bg-primary/20 text-primary cursor-wait'
-                                : 'bg-primary/10 text-primary hover:bg-primary/20'
-                                }`}
-                            title="Aplicar regras a TODOS os emails de hoje"
-                        >
-                            {processingRules ? (
-                                <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
-                            ) : (
-                                <span className="material-symbols-outlined text-[18px]">filter_alt</span>
-                            )}
-                            <span>{processingRules ? 'Verificando...' : 'Aplicar Regras (Hoje)'}</span>
-                        </button>
-                        <button
-                            onClick={() => checkConnectionAndLoadEmails()}
-                            className="p-2 text-gray-500 dark:text-text-dim hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
-                            title="Atualizar"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">refresh</span>
-                        </button>
                     </div>
                 </div>
 

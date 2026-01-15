@@ -5,9 +5,7 @@ import { Rule, ActivityLog, RuleStatus } from '../types';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import EmailList from '../components/EmailList';
-import EmailMonitorStatus from '../components/EmailMonitorStatus';
-import { emailMonitor } from '../lib/emailMonitor';
-import { supabase } from '../lib/supabase';
+import { realtimeService } from '../lib/realtimeService';
 
 interface DashboardProps {
   rules: Rule[];
@@ -16,31 +14,12 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
-  const [monitorState, setMonitorState] = React.useState(emailMonitor.getState());
-  const [realtimeUpdates, setRealtimeUpdates] = React.useState(0);
+  const [isRealtimeConnected, setIsRealtimeConnected] = React.useState(false);
 
+  // Subscribe to realtime connection status
   React.useEffect(() => {
-    const unsubscribe = emailMonitor.subscribe(setMonitorState);
+    const unsubscribe = realtimeService.onConnectionChange(setIsRealtimeConnected);
     return () => unsubscribe();
-  }, []);
-
-  // Supabase Realtime subscription for live updates
-  React.useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-realtime')
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'processed_emails' },
-        (payload) => {
-          console.log('✅ Email processado em tempo real:', payload.new);
-          // Incrementar contador forçando re-render
-          setRealtimeUpdates(prev => prev + 1);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const activeRulesCount = rules.filter(r => r.status === RuleStatus.ACTIVE).length;
@@ -48,16 +27,21 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
 
   // Calculate stats from logs (today)
   const today = new Date().toDateString();
-  const todayLogs = logs.filter(log => new Date(log.timestamp).toDateString() === today);
+  const todayLogs = logs.filter(log => {
+    try {
+      return new Date(log.created_at || log.timestamp).toDateString() === today;
+    } catch {
+      return false;
+    }
+  });
   const matchedToday = todayLogs.filter(log => log.type === 'RuleMatch').length;
-
-  // Get monitor state for processed count (already from state)
+  const processedToday = todayLogs.length;
 
 
   const stats = [
     {
       label: 'Emails Processados',
-      value: monitorState.processedCount.toLocaleString(),
+      value: processedToday.toLocaleString(),
       sub: `${matchedToday} ações hoje`,
       change: '+100%',
       icon: 'mail',
@@ -81,6 +65,17 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Live Status Indicator */}
+      {isRealtimeConnected && (
+        <div className="flex items-center gap-2 text-emerald-500 text-sm font-medium animate-pulse">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          Atualizações em tempo real ativas
+        </div>
+      )}
+
       {/* Stats Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
@@ -94,11 +89,6 @@ const Dashboard: React.FC<DashboardProps> = ({ rules, logs, onToggleRule }) => {
             change={stat.change}
           />
         ))}
-      </section>
-
-      {/* Email Monitor Status */}
-      <section>
-        <EmailMonitorStatus />
       </section>
 
       {/* Email Inbox */}

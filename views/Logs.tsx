@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import { realtimeService } from '../lib/realtimeService';
 
 interface LogsProps {
   logs: ActivityLog[];
@@ -12,6 +13,13 @@ interface LogsProps {
 }
 
 const Logs: React.FC<LogsProps> = ({ logs, onRefresh }) => {
+  const [isRealtimeConnected, setIsRealtimeConnected] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = realtimeService.onConnectionChange(setIsRealtimeConnected);
+    return () => unsubscribe();
+  }, []);
+
   const stats = [
     { label: 'Total Hoje', value: '1,248', icon: 'analytics', color: 'text-blue-400' },
     { label: 'Sucesso', value: '98%', icon: 'check_circle', color: 'text-emerald-400' },
@@ -25,6 +33,15 @@ const Logs: React.FC<LogsProps> = ({ logs, onRefresh }) => {
         title="Logs de Atividade"
         description="Monitore, audite e exporte o histórico completo de ações do sistema."
       >
+        {isRealtimeConnected && (
+          <span className="flex items-center gap-1.5 text-emerald-500 text-xs font-medium px-2 py-1 bg-emerald-500/10 rounded-full">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Live
+          </span>
+        )}
         <Button variant="secondary" icon="download">
           Exportar CSV
         </Button>

@@ -3,6 +3,7 @@ import React from 'react';
 import { NotificationHistory } from '../types';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
+import { realtimeService } from '../lib/realtimeService';
 
 interface NotificationsProps {
   history: NotificationHistory[];
@@ -10,12 +11,28 @@ interface NotificationsProps {
 }
 
 const Notifications: React.FC<NotificationsProps> = ({ history, onRefresh }) => {
+  const [isRealtimeConnected, setIsRealtimeConnected] = React.useState(false);
+
+  React.useEffect(() => {
+    const unsubscribe = realtimeService.onConnectionChange(setIsRealtimeConnected);
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
       <PageHeader
         title="Histórico de Alertas"
         description="Acompanhe todos os alertas enviados automaticamente pelas suas regras de monitoramento."
       >
+        {isRealtimeConnected && (
+          <span className="flex items-center gap-1.5 text-emerald-500 text-xs font-medium px-2 py-1 bg-emerald-500/10 rounded-full">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            Live
+          </span>
+        )}
         <Button variant="secondary" icon="refresh" onClick={onRefresh}>
           Atualizar
         </Button>
