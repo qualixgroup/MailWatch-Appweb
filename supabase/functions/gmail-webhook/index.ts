@@ -63,18 +63,25 @@ serve(async (req) => {
         const userId = tokenData.user_id;
 
         // 2. Invoke process-rules function incrementally
-        // We call the other function to reuse logic and keep things modular
-        const { error: invokeError } = await supabase.functions.invoke('process-rules', {
-            body: {
+        // We call the other function using HTTP with Service Role Key for authentication
+        const processRulesResponse = await fetch(`${supabaseUrl}/functions/v1/process-rules`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'apikey': supabaseServiceKey
+            },
+            body: JSON.stringify({
                 mode: 'incremental',
                 userId: userId,
                 historyId: data.historyId, // Current historyId from notification
                 emailAddress: data.emailAddress
-            }
+            })
         });
 
-        if (invokeError) {
-            console.error(`Error invoking process-rules: ${invokeError.message}`);
+        if (!processRulesResponse.ok) {
+            const errorText = await processRulesResponse.text();
+            console.error(`Error invoking process-rules: ${processRulesResponse.status} - ${errorText}`);
             // Still return 200 to Pub/Sub so it doesn't retry this specific failed processing 
             // (or return 500 if you WANT it to retry)
             return new Response(JSON.stringify({ error: "Processing failed" }), {

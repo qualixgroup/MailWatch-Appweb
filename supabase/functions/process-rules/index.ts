@@ -151,6 +151,7 @@ serve(async (req) => {
 
                 // 4. Fetch Emails (Incremental vs Full)
                 let messages: any[] = [];
+                let usedFullScan = false;
 
                 // If Webhook mode (incremental) and we have a previous historyId
                 if (payload.mode === 'incremental' && payload.historyId && tokenRecord?.history_id) {
@@ -174,19 +175,20 @@ serve(async (req) => {
                                 }
                             }
                         } else {
-                            log("No new messages found since last historyId");
+                            log("No new messages found since last historyId - falling back to full scan");
                         }
                     } else {
-                        // History ID might be too old (404), fall back to list?
-                        // For now, simple logging errors
-                        log(`History fetch failed: ${historyRes.status}`);
+                        // History ID might be too old (404), fall back to full scan
+                        log(`History fetch failed: ${historyRes.status} - falling back to full scan`);
                     }
+                }
 
-                } else {
-                    // Full Scan Mode (Default / Fallback)
-                    log("Full inbox scan (standard mode)");
+                // Fallback to Full Scan if incremental found nothing OR if not in incremental mode
+                if (messages.length === 0) {
+                    log("Full inbox scan (standard mode or fallback)");
+                    usedFullScan = true;
                     const gmailResponse = await fetch(
-                        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX&q=is:unread category:primary",
+                        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX",
                         {
                             headers: { Authorization: `Bearer ${accessToken}` }
                         }
@@ -241,16 +243,16 @@ serve(async (req) => {
                         if (existing) continue;
 
                         const matchedCriteria: string[] = [];
-                        const hasSubjectReq = !!rule.subjectFilter;
-                        const hasSenderReq = !!rule.senderFilter;
+                        const hasSubjectReq = !!rule.subject_filter;
+                        const hasSenderReq = !!rule.sender_filter;
                         const hasKeywordsReq = rule.keywords && rule.keywords.length > 0;
 
                         // Match Logic
-                        if (hasSubjectReq && checkMatch(subject, rule.subjectFilter, rule.condition)) {
-                            matchedCriteria.push(`Filtro "${rule.condition}": "${rule.subjectFilter}"`);
+                        if (hasSubjectReq && checkMatch(subject, rule.subject_filter, rule.condition)) {
+                            matchedCriteria.push(`Filtro "${rule.condition}": "${rule.subject_filter}"`);
                         }
-                        if (hasSenderReq && from.toLowerCase().includes(rule.senderFilter.toLowerCase())) {
-                            matchedCriteria.push(`Remetente contém "${rule.senderFilter}"`);
+                        if (hasSenderReq && from.toLowerCase().includes(rule.sender_filter.toLowerCase())) {
+                            matchedCriteria.push(`Remetente contém "${rule.sender_filter}"`);
                         }
                         if (hasKeywordsReq) {
                             const kws = rule.keywords.filter((kw: string) =>
@@ -265,6 +267,21 @@ serve(async (req) => {
 
                         if (matchedCriteria.length > 0) {
                             // Rule Matched! Execute Actions
+                            // FIRST: Insert into processed_emails to prevent race conditions
+                            // If another process already inserted, we skip this rule/email combo
+                            const { error: insertError } = await supabase.from("processed_emails").insert({
+                                user_id: listUser.id,
+                                message_id: email.id,
+                                rule_id: rule.id,
+                                action_type: 'rule_execution_background'
+                            });
+
+                            if (insertError) {
+                                // Unique constraint violation means another process is handling this
+                                log(`Already being processed by another instance: ${email.id} for rule ${rule.name}`);
+                                continue; // Skip to next rule
+                            }
+
                             const actionsTaken: string[] = [];
                             let emailSent = false;
                             let whatsappSent = false;
@@ -389,12 +406,7 @@ serve(async (req) => {
                                 details: actionsTaken.length > 0 ? actionsTaken.join(', ') : null
                             });
 
-                            await supabase.from("processed_emails").insert({
-                                user_id: listUser.id,
-                                message_id: email.id,
-                                rule_id: rule.id,
-                                action_type: 'rule_execution_background'
-                            });
+                            // processed_emails insert was already done at the beginning of this block
 
                             results.push({ user: listUser.id, rule: rule.id, email: email.id, actions: actionsTaken });
                             log(`Matched Rule: ${rule.name}`);
